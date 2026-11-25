@@ -4,6 +4,14 @@ App Android de corridas urbanas no estilo Uber, 99 e inDrive. O passageiro prop�
 
 > **Versão de demonstração.** Não há servidor. Corridas, motoristas, pagamentos e verificações são simulados, e todos os dados ficam só no aparelho. O que falta para produção está em [`docs/specs/SPEC-008.md`](docs/specs/SPEC-008.md).
 
+## Telas
+Telas do design do app, uma por fluxo (todas as telas, uma por arquivo, estão em [`docs/telas/individuais`](docs/telas/individuais)):
+
+![Entrar e pedir](docs/telas/1-entrada-e-pedido.png)
+![Corrida completa](docs/telas/2-corrida.png)
+![Conta, carteira e ajuda](docs/telas/3-conta.png)
+![Motorista: verificação](docs/telas/4-motorista.png)
+
 ## Equipe
 - **Desenvolvimento:** Draxio (@draxio).
 - **UI/UX, identidade visual e logo:** Lucas. O redesign está documentado em [`REDESIGN-UI.md`](REDESIGN-UI.md).
