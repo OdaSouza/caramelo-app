@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Caramelo · Recibo e avaliação</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#B4531A}a:hover{color:#5A1E0E}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #F3F1ED; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #2E140A; overflow: hidden; display: flex; flex-direction: column; padding: 28px 20px 20px; gap: 14px">
+
+  <div style="display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center">
+    <div style="width: 64px; height: 64px; border-radius: 50%; background: rgba(47,122,85,0.15); color: #2F7A55; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg></div>
+    <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.4px">Você chegou!</h1>
+    <span style="font-size: 13px; color: #6E6762">Shopping Cidade Jardim · com Fernanda</span>
+  </div>
+
+  <section aria-label="Recibo" style="background: #FFFFFF; border-radius: 24px; padding: 16px 18px; display: flex; flex-direction: column; gap: 8px; font-size: 14px">
+    <div style="display: flex; justify-content: space-between"><span style="color: #6E6762">Corrida</span><span style="font-weight: 600">R$ 19,00</span></div>
+    <div style="display: flex; justify-content: space-between"><span style="color: #6E6762">Cupom CARAMELO10</span><span style="font-weight: 600; color: #2F7A55">− R$ 1,90</span></div>
+    <div style="display: flex; justify-content: space-between"><span style="color: #6E6762">Gorjeta</span><span style="font-weight: 600">{{ tipLabel }}</span></div>
+    <div style="height: 1px; background: #F0ECE6; margin: 4px 0"></div>
+    <div style="display: flex; justify-content: space-between; align-items: baseline"><span style="font-weight: 700">Total · Pix</span><span style="font-size: 22px; font-weight: 800; color: #B4531A">{{ total }}</span></div>
+  </section>
+
+  <section style="background: #FFFFFF; border-radius: 24px; padding: 16px 18px; display: flex; flex-direction: column; gap: 12px; align-items: center">
+    <span style="font-size: 15px; font-weight: 700">Como foi a viagem?</span>
+    <div role="radiogroup" aria-label="Nota da viagem" style="display: flex; gap: 6px">
+      <button type="button" aria-label="1 estrela" onClick="{{ r1 }}" style="{{ s1 }}">★</button>
+      <button type="button" aria-label="2 estrelas" onClick="{{ r2 }}" style="{{ s2 }}">★</button>
+      <button type="button" aria-label="3 estrelas" onClick="{{ r3 }}" style="{{ s3 }}">★</button>
+      <button type="button" aria-label="4 estrelas" onClick="{{ r4 }}" style="{{ s4 }}">★</button>
+      <button type="button" aria-label="5 estrelas" onClick="{{ r5 }}" style="{{ s5 }}">★</button>
+    </div>
+  </section>
+
+  <div style="display: flex; flex-direction: column; gap: 8px">
+    <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #6E6762">Gorjeta para Fernanda</span>
+    <div role="group" aria-label="Gorjeta" style="display: flex; gap: 8px; flex-wrap: wrap">
+      <button type="button" onClick="{{ t0 }}" style="{{ c0 }}">Sem gorjeta</button>
+      <button type="button" onClick="{{ t2 }}" style="{{ c2 }}">R$ 2</button>
+      <button type="button" onClick="{{ t5 }}" style="{{ c5 }}">R$ 5</button>
+      <button type="button" onClick="{{ t10 }}" style="{{ c10 }}">R$ 10</button>
+    </div>
+  </div>
+
+  <a href="Historico.dc.html" style="margin-top: auto; height: 54px; border-radius: 999px; background: #B4531A; color: #FFFFFF; font-size: 15px; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center">Concluir</a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { rating: 5, tip: 5 };
+  }
+  star(on) {
+    return 'width: 46px; height: 46px; border: 0; background: none; font-size: 34px; line-height: 1; padding: 0; color: ' + (on ? '#F08A1C' : '#E4DFD8');
+  }
+  chip(on) {
+    return 'height: 40px; padding: 0 16px; border-radius: 999px; font: inherit; font-size: 14px; font-weight: 700; ' +
+      (on ? 'border: 0; background: #3A1A0F; color: #FFFFFF' : 'border: 1.5px solid #E4DFD8; background: #FFFFFF; color: #2E140A');
+  }
+  brl(v) { return 'R$ ' + v.toFixed(2).replace('.', ','); }
+  renderVals() {
+    const { rating, tip } = this.state;
+    const r = (n) => () => this.setState({ rating: n });
+    const t = (n) => () => this.setState({ tip: n });
+    return {
+      tipLabel: tip ? this.brl(tip) : '—',
+      total: this.brl(19 - 1.9 + tip),
+      r1: r(1), r2: r(2), r3: r(3), r4: r(4), r5: r(5),
+      s1: this.star(rating >= 1), s2: this.star(rating >= 2), s3: this.star(rating >= 3), s4: this.star(rating >= 4), s5: this.star(rating >= 5),
+      t0: t(0), t2: t(2), t5: t(5), t10: t(10),
+      c0: this.chip(tip === 0), c2: this.chip(tip === 2), c5: this.chip(tip === 5), c10: this.chip(tip === 10),
+    };
+  }
+}
+</script>
+</body>
+</html>

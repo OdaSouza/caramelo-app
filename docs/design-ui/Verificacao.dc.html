@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Caramelo · Verificação de segurança</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#B4531A}a:hover{color:#5A1E0E}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #F3F1ED; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #2E140A; overflow: hidden; display: flex; flex-direction: column; padding: 24px 20px 20px">
+
+  <div style="display: flex; align-items: center; justify-content: space-between; flex: none">
+    <a href="Perfil.dc.html" aria-label="Voltar" style="width: 48px; height: 48px; border-radius: 50%; background: #FFFFFF; color: #2E140A; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></a>
+    <p style="margin: 0; font-size: 16px; font-weight: 700">Verificação de segurança</p>
+    <span style="width: 48px"></span>
+  </div>
+
+  <div style="flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding: 16px 0 12px">
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <div role="img" aria-label="Passo 3 de 3" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px">
+        <div style="height: 8px; border-radius: 6px; background: #B4531A"></div><div style="height: 8px; border-radius: 6px; background: #B4531A"></div><div style="height: 8px; border-radius: 6px; background: #B4531A"></div>
+      </div>
+      <span style="font-size: 13px; color: #6E6762">Passo 3 de 3</span>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 4px">
+      <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #6E6762">Igual para todos os motoristas</span>
+      <h1 style="margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -0.4px">Checagem de segurança</h1>
+      <p style="margin: 2px 0 0; font-size: 14px; line-height: 1.45; color: #6E6762">Passageiros só recebem propostas de motoristas verificados. A equipe Caramelo confere tudo antes de liberar suas viagens.</p>
+    </div>
+
+    <section aria-label="Documentos" style="background: #FFFFFF; border-radius: 24px; padding: 4px 16px">
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #F0ECE6">
+        <span style="{{ selfieIconBox }}"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M5 21a7 7 0 0 1 14 0"/></svg></span>
+        <span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0"><span style="font-size: 14px; font-weight: 700">Selfie de confirmação</span><span style="font-size: 12px; color: #6E6762">{{ selfieSub }}</span></span>
+        <button type="button" onClick="{{ doSelfie }}" style="border: 0; background: none; font: inherit; font-size: 14px; font-weight: 700; color: #B4531A; min-height: 44px; padding: 0 4px">{{ selfieAction }}</button>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #F0ECE6">
+        <span style="{{ fedIconBox }}"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg></span>
+        <span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0"><span style="font-size: 14px; font-weight: 700">Antecedentes · Federal</span><span style="font-size: 12px; color: #6E6762">{{ fedSub }}</span></span>
+        <button type="button" onClick="{{ doFed }}" style="border: 0; background: none; font: inherit; font-size: 14px; font-weight: 700; color: #B4531A; min-height: 44px; padding: 0 4px">{{ fedAction }}</button>
+      </div>
+      <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0">
+        <span style="{{ estIconBox }}"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h4"/></svg></span>
+        <span style="display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0"><span style="font-size: 14px; font-weight: 700">Antecedentes · Estadual</span><span style="font-size: 12px; color: #6E6762">{{ estSub }}</span></span>
+        <button type="button" onClick="{{ doEst }}" style="border: 0; background: none; font: inherit; font-size: 14px; font-weight: 700; color: #B4531A; min-height: 44px; padding: 0 4px">{{ estAction }}</button>
+      </div>
+    </section>
+
+    <button type="button" role="checkbox" aria-checked="{{ earOn }}" onClick="{{ toggleEar }}" style="background: #FFFFFF; border: 0; border-radius: 24px; padding: 14px 16px; font: inherit; color: inherit; text-align: left; display: flex; align-items: center; gap: 12px">
+      <span style="display: flex; flex-direction: column; gap: 2px; flex: 1"><span style="font-size: 14px; font-weight: 700">Minha CNH tem a observação EAR</span><span style="font-size: 12px; color: #6E6762">Exerce Atividade Remunerada: exigida para transporte pago</span></span>
+      <span style="{{ earBox }}"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg></span>
+    </button>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <span style="font-size: 12px; font-weight: 700; letter-spacing: 0.6px; text-transform: uppercase; color: #6E6762">Grupo no filtro (opcional)</span>
+      <p style="margin: 0; font-size: 12px; line-height: 1.45; color: #6E6762">Para aparecer quando o passageiro escolhe Mulher, Homem ou LGBTQIA+. É autodeclaração e pode ser mudada depois.</p>
+      <div role="group" aria-label="Grupo no filtro de preferência" style="display: flex; gap: 8px; flex-wrap: wrap">
+        <button type="button" aria-pressed="{{ g0On }}" onClick="{{ setG0 }}" style="{{ g0 }}">Não informar</button>
+        <button type="button" aria-pressed="{{ g1On }}" onClick="{{ setG1 }}" style="{{ g1 }}">Mulher</button>
+        <button type="button" aria-pressed="{{ g2On }}" onClick="{{ setG2 }}" style="{{ g2 }}">Homem</button>
+        <button type="button" aria-pressed="{{ g3On }}" onClick="{{ setG3 }}" style="{{ g3 }}">LGBTQIA+</button>
+      </div>
+    </div>
+
+    <button type="button" role="checkbox" aria-checked="{{ consentOn }}" onClick="{{ toggleConsent }}" style="background: #FFE9D1; border: 0; border-radius: 24px; padding: 14px 16px; font: inherit; color: inherit; text-align: left; display: flex; align-items: flex-start; gap: 12px">
+      <span style="display: flex; flex-direction: column; gap: 4px; flex: 1"><span style="font-size: 14px; font-weight: 700">Autorizo a checagem</span><span style="font-size: 12px; line-height: 1.45; color: #5A1E0E">Consulta dos meus antecedentes criminais, comparação da selfie com a CNH (dado biométrico) e uso do grupo informado, só para a segurança das viagens. Refeita todo ano.</span></span>
+      <span style="{{ consentBox }}"><svg aria-hidden="true" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round"><path d="m5 12 5 5 9-10"/></svg></span>
+    </button>
+  </div>
+
+  <a href="{{ submitHref }}" aria-disabled="{{ notReady }}" style="{{ submitStyle }}">{{ submitLabel }}</a>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { selfie: true, fed: true, est: false, ear: false, consent: false, group: 1 };
+  }
+  iconBox(done) {
+    return 'width: 44px; height: 44px; border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; ' +
+      (done ? 'background: rgba(47,122,85,0.15); color: #2F7A55' : 'background: #F3F1ED; color: #2E140A');
+  }
+  box(on) {
+    return 'width: 24px; height: 24px; border-radius: 7px; flex: none; box-sizing: border-box; display: flex; align-items: center; justify-content: center; ' +
+      (on ? 'background: #B4531A' : 'background: #FFFFFF; border: 2px solid #C9C1B8');
+  }
+  chip(on) {
+    return 'height: 38px; padding: 0 14px; border-radius: 999px; font: inherit; font-size: 13px; font-weight: 700; ' +
+      (on ? 'border: 0; background: #3A1A0F; color: #FFFFFF' : 'border: 1.5px solid #E4DFD8; background: #FFFFFF; color: #2E140A');
+  }
+  renderVals() {
+    const s = this.state;
+    const missing = [];
+    if (!s.selfie) missing.push('selfie');
+    if (!s.fed) missing.push('certidão federal');
+    if (!s.est) missing.push('certidão estadual');
+    if (!s.ear) missing.push('EAR');
+    if (!s.consent) missing.push('autorização');
+    const ready = missing.length === 0;
+    const g = (i) => ({ on: s.group === i, style: this.chip(s.group === i), set: () => this.setState({ group: i }) });
+    const G = [g(0), g(1), g(2), g(3)];
+    return {
+      selfieIconBox: this.iconBox(s.selfie), selfieSub: s.selfie ? 'Selfie capturada' : 'Comparamos seu rosto com a CNH',
+      selfieAction: s.selfie ? 'Refazer' : 'Tirar', doSelfie: () => this.setState({ selfie: true }),
+      fedIconBox: this.iconBox(s.fed), fedSub: s.fed ? 'certidao-policia-federal.pdf' : 'Polícia Federal, grátis no gov.br',
+      fedAction: s.fed ? 'Trocar' : 'Enviar', doFed: () => this.setState({ fed: true }),
+      estIconBox: this.iconBox(s.est), estSub: s.est ? 'certidao-estadual.pdf' : 'Secretaria de Segurança ou Tribunal de Justiça',
+      estAction: s.est ? 'Trocar' : 'Enviar', doEst: () => this.setState({ est: true }),
+      earOn: s.ear, earBox: this.box(s.ear), toggleEar: () => this.setState({ ear: !s.ear }),
+      consentOn: s.consent, consentBox: this.box(s.consent), toggleConsent: () => this.setState({ consent: !s.consent }),
+      g0On: G[0].on, g0: G[0].style, setG0: G[0].set,
+      g1On: G[1].on, g1: G[1].style, setG1: G[1].set,
+      g2On: G[2].on, g2: G[2].style, setG2: G[2].set,
+      g3On: G[3].on, g3: G[3].style, setG3: G[3].set,
+      notReady: !ready,
+      submitHref: ready ? 'VerificacaoStatus.dc.html' : '#',
+      submitLabel: ready ? 'Enviar para análise' : 'Falta: ' + missing.join(', '),
+      submitStyle: 'flex: none; height: 54px; border-radius: 999px; box-sizing: border-box; font-size: 15px; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center; padding: 0 16px; text-align: center; ' +
+        (ready ? 'background: #B4531A; color: #FFFFFF' : 'background: #FFFFFF; color: #6E6762; border: 1.5px solid #E4DFD8'),
+    };
+  }
+}
+</script>
+</body>
+</html>

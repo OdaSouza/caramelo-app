@@ -6,27 +6,46 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Email
+import androidx.compose.material.icons.rounded.Lock
 import androidx.compose.material3.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.draxio.mapa_teste.ui.components.CarameloPillButton
+import com.draxio.mapa_teste.ui.components.CarameloTextField
+import com.draxio.mapa_teste.ui.components.PillStyle
 import com.draxio.mapa_teste.ui.theme.*
 
 class LoginActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        // Sessão ativa: vai direto para o mapa
+        if (CarameloRepository.isLoggedIn(this)) {
+            startActivity(Intent(this, Mapao_do_Oda::class.java))
+            finish()
+            return
+        }
         setContent {
             Mapa_testeTheme {
                 Surface(
@@ -35,6 +54,7 @@ class LoginActivity : ComponentActivity() {
                 ) {
                     LoginScreen(
                         onLoginSuccess = {
+                            CarameloRepository.setLoggedIn(this, true)
                             val intent = Intent(this, Mapao_do_Oda::class.java)
                             startActivity(intent)
                             finish()
@@ -48,13 +68,15 @@ class LoginActivity : ComponentActivity() {
                             startActivity(intent)
                         },
                         onGoogleLogin = {
-                            Toast.makeText(this, "Login com Google realizado!", Toast.LENGTH_SHORT).show()
+                            CarameloRepository.setLoggedIn(this, true)
+                            Toast.makeText(this, "Modo demonstração: entrando sem conta Google", Toast.LENGTH_SHORT).show()
                             val intent = Intent(this, Mapao_do_Oda::class.java)
                             startActivity(intent)
                             finish()
                         },
                         onAppleLogin = {
-                            Toast.makeText(this, "Login com Apple realizado com sucesso!", Toast.LENGTH_SHORT).show()
+                            CarameloRepository.setLoggedIn(this, true)
+                            Toast.makeText(this, "Modo demonstração: entrando sem conta Apple", Toast.LENGTH_SHORT).show()
                             val intent = Intent(this, Mapao_do_Oda::class.java)
                             startActivity(intent)
                             finish()
@@ -78,170 +100,172 @@ fun LoginScreen(
     onAppleLogin: () -> Unit = {},
     onShowError: (String) -> Unit
 ) {
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by remember { mutableStateOf("") } // senha fora do estado salvo
 
+    // Tela inteira na cor da folha, para a folha "continuar" ate o fim sem emenda
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
+            .background(MaterialTheme.colorScheme.surface)
     ) {
         Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState()),
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .systemBarsPadding(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            CarameloLogo()
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            Text(
-                text = "Login",
-                fontSize = 36.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
-
-            OutlinedTextField(
-                value = email,
-                onValueChange = { email = it },
-                label = { Text("E-mail") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    focusedLabelColor = MaterialTheme.colorScheme.primary,
-                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
+            // Logo oficial completo
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(id = R.drawable.caramelo_logo),
+                    contentDescription = "Caramelo",
+                    modifier = Modifier
+                        .size(220.dp)
+                        .clip(RoundedCornerShape(32.dp))
                 )
-            )
+            }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Senha") },
-                visualTransformation = PasswordVisualTransformation(),
+            // Folha branca com cantos superiores arredondados
+            Surface(
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    focusedLabelColor = MaterialTheme.colorScheme.primary,
-                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                )
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Botão Entrar Principal
-            Button(
-                onClick = {
-                    if (email.isNotBlank() && password.isNotBlank()) {
-                        onLoginSuccess()
-                    } else {
-                        onShowError("Por favor, preencha o e-mail e a senha.")
+                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+                color = MaterialTheme.colorScheme.surface,
+                shadowElevation = 2.dp
+            ) {
+                Column(
+                    modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 22.dp, bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(
+                            text = "Mobilidade com calor humano",
+                            style = MaterialTheme.typography.headlineSmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Entre para pedir sua próxima viagem.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
-                Text(
-                    text = "Entrar",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
-                )
-            }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            // Botão Entrar com o Google
-            OutlinedButton(
-                onClick = onGoogleLogin,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(text = "🌐", fontSize = 16.sp)
-                    Text(
-                        text = "Entrar com o Google",
-                        color = MaterialTheme.colorScheme.onBackground,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
+                    CarameloTextField(
+                        value = email,
+                        onValueChange = { email = it },
+                        label = "E-mail",
+                        placeholder = "voce@email.com",
+                        leadingIcon = Icons.Rounded.Email,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email)
                     )
-                }
-            }
 
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Botão Entrar com a Apple
-            OutlinedButton(
-                onClick = onAppleLogin,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(text = "🍎", fontSize = 18.sp)
-                    Text(
-                        text = "Entrar com a Apple",
-                        color = MaterialTheme.colorScheme.onBackground,
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold
+                    CarameloTextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        label = "Senha",
+                        placeholder = "Sua senha",
+                        leadingIcon = Icons.Rounded.Lock,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        visualTransformation = PasswordVisualTransformation()
                     )
-                }
-            }
 
-            Spacer(modifier = Modifier.height(20.dp))
+                    // "Esqueci minha senha" alinhado a direita
+                    TextButton(
+                        onClick = onNavigateToRecovery,
+                        modifier = Modifier
+                            .align(Alignment.End)
+                            .heightIn(min = 44.dp)
+                    ) {
+                        Text(
+                            text = "Esqueci minha senha",
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary
+                        )
+                    }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                TextButton(onClick = onNavigateToRegister) {
-                    Text(
-                        text = "Criar conta",
-                        color = MaterialTheme.colorScheme.primary,
-                        fontWeight = FontWeight.Bold
+                    // Botão Entrar Principal
+                    CarameloPillButton(
+                        text = "Entrar",
+                        onClick = {
+                            if (email.isNotBlank() && password.isNotBlank()) {
+                                onLoginSuccess()
+                            } else {
+                                onShowError("Por favor, preencha o e-mail e a senha.")
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        style = PillStyle.Primary
                     )
-                }
 
-                TextButton(onClick = onNavigateToRecovery) {
-                    Text(
-                        text = "Recupere sua conta",
-                        color = MaterialTheme.colorScheme.onBackground,
-                        fontWeight = FontWeight.SemiBold
-                    )
+                    // Google (contorno) + Apple (cacau), lado a lado
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        Surface(
+                            onClick = onGoogleLogin,
+                            modifier = Modifier
+                                .weight(1f)
+                                .heightIn(min = 54.dp),
+                            shape = CircleShape,
+                            color = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface,
+                            border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline)
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(horizontal = 20.dp, vertical = 14.dp),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "G",
+                                    style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.ExtraBold),
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Google",
+                                    style = MaterialTheme.typography.labelLarge
+                                )
+                            }
+                        }
+
+                        CarameloPillButton(
+                            text = "Apple",
+                            onClick = onAppleLogin,
+                            modifier = Modifier.weight(1f),
+                            style = PillStyle.Dark
+                        )
+                    }
+
+                    // Rodapé: "Novo por aqui? Criar conta"
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Novo por aqui?",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.Center
+                        )
+                        TextButton(
+                            onClick = onNavigateToRegister,
+                            modifier = Modifier.heightIn(min = 44.dp)
+                        ) {
+                            Text(
+                                text = "Criar conta",
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
                 }
             }
         }

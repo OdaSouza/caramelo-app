@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Caramelo · Escolha da viagem</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#B4531A}a:hover{color:#5A1E0E}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #F3F1ED; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #2E140A; overflow: hidden">
+
+  <svg aria-hidden="true" width="390" height="230" viewBox="0 0 390 230" style="position: absolute; left: 0; top: 0">
+    <rect width="390" height="230" fill="#E9E6E1"/>
+    <rect x="240" y="20" width="110" height="60" rx="10" fill="#DCD8D0"/>
+    <g stroke="#FFFFFF" stroke-linecap="round" fill="none">
+      <path stroke-width="14" d="M-10 150 L400 118"/><path stroke-width="14" d="M110 -10 L140 240"/>
+      <path stroke-width="8" d="M-10 60 L400 40 M-10 205 L400 190 M40 -10 L52 240 M230 -10 L250 240 M320 -10 L344 240"/>
+    </g>
+    <path d="M70 186 L 132 178 L 128 120 L 300 104 L 318 58" stroke="#F08A1C" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="70" cy="186" r="9" fill="#FFFFFF" stroke="#2E140A" stroke-width="4"/>
+    <circle cx="318" cy="58" r="10" fill="#F08A1C" stroke="#FFFFFF" stroke-width="4"/>
+  </svg>
+
+  <div style="position: absolute; left: 20px; top: 24px; display: flex; align-items: center; gap: 10px">
+    <a href="Inicio.dc.html" aria-label="Voltar" style="width: 48px; height: 48px; border-radius: 50%; background: #FFFFFF; color: #2E140A; display: flex; align-items: center; justify-content: center; box-shadow: 0 6px 18px rgba(43,27,23,0.10)"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg></a>
+    <div style="height: 48px; padding: 0 16px; border-radius: 999px; background: #FFFFFF; display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 700; box-shadow: 0 6px 18px rgba(43,27,23,0.10)">Av. Paulista<svg aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#B4531A" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg>Shopping C. Jardim</div>
+  </div>
+
+  <div style="position: absolute; left: 0; right: 0; top: 196px; bottom: 0; background: #FFFFFF; border-radius: 32px 32px 0 0; padding: 12px 20px 24px; box-sizing: border-box; display: flex; flex-direction: column; gap: 14px; box-shadow: 0 -8px 30px rgba(43,27,23,0.08)">
+    <div style="align-self: center; width: 40px; height: 4px; border-radius: 4px; background: #E4DFD8"></div>
+    <div style="display: flex; justify-content: space-between; align-items: baseline">
+      <h1 style="margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.2px">Escolha sua viagem</h1>
+      <span style="font-size: 13px; color: #6E6762">8 km · 22 min</span>
+    </div>
+
+    <div role="tablist" aria-label="Tipo de serviço" style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 4px; border-radius: 999px; background: #F3F1ED">
+      <sc-for list="{{ modes }}" as="m" hint-placeholder-count="4">
+        <button type="button" role="tab" aria-selected="{{ m.on }}" onClick="{{ m.pick }}" style="{{ m.style }}">{{ m.label }}</button>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <sc-for list="{{ rides }}" as="r" hint-placeholder-count="3">
+        <button type="button" aria-pressed="{{ r.on }}" onClick="{{ r.pick }}" style="{{ r.style }}">
+          <span style="width: 48px; height: 48px; border-radius: 14px; background: #F3F1ED; color: #2E140A; display: flex; align-items: center; justify-content: center; flex: none"><svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg></span>
+          <span style="display: flex; flex-direction: column; gap: 2px; text-align: left"><span style="font-size: 15px; font-weight: 700">{{ r.name }}</span><span style="font-size: 12px; color: #6E6762">{{ r.meta }}</span></span>
+          <span style="margin-left: auto; font-size: 17px; font-weight: 800">{{ r.price }}</span>
+        </button>
+      </sc-for>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 8px">
+      <p style="margin: 0; font-size: 13px; font-weight: 700">Motorista preferido</p>
+      <div style="display: flex; gap: 6px; flex-wrap: wrap">
+        <sc-for list="{{ prefs }}" as="p" hint-placeholder-count="4">
+          <button type="button" aria-pressed="{{ p.on }}" onClick="{{ p.pick }}" style="{{ p.style }}">{{ p.label }}</button>
+        </sc-for>
+      </div>
+    </div>
+
+    <div style="display: flex; align-items: center; justify-content: space-between; padding: 10px 12px; border-radius: 18px; background: #F3F1ED">
+      <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #6E6762">Sua oferta</span><span style="font-size: 20px; font-weight: 800; letter-spacing: -0.3px">{{ offer }}</span></div>
+      <div style="display: flex; gap: 8px">
+        <button type="button" aria-label="Diminuir oferta" onClick="{{ down }}" style="width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid #E4DFD8; background: #FFFFFF; color: #2E140A; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M5 12h14"/></svg></button>
+        <button type="button" aria-label="Aumentar oferta" onClick="{{ up }}" style="width: 44px; height: 44px; border-radius: 50%; border: 0; background: #3A1A0F; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg></button>
+      </div>
+    </div>
+
+    <div style="display: flex; gap: 10px; margin-top: auto">
+      <button type="button" aria-label="Pagamento: Visa final 2048" style="height: 54px; padding: 0 16px; border-radius: 999px; border: 1.5px solid #E4DFD8; background: #FFFFFF; color: #2E140A; font: 700 14px 'Plus Jakarta Sans', sans-serif; display: flex; align-items: center; gap: 8px"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg>2048</button>
+      <a href="Propostas.dc.html" style="flex: 1; height: 54px; border-radius: 999px; background: #B4531A; color: #FFFFFF; font-size: 16px; font-weight: 700; text-decoration: none; display: flex; align-items: center; justify-content: center">Confirmar {{ selectedName }}</a>
+    </div>
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { mode: 'Carro', ride: 'Leve', pref: 'Geral', offerCents: 1840 };
+  }
+  renderVals() {
+    const s = this.state;
+    const modeBase = 'height: 40px; border: 0; border-radius: 999px; font: 700 13px "Plus Jakarta Sans", sans-serif; ';
+    const modes = ['Carro', 'Moto', 'Entregas', 'Frete'].map((label) => ({
+      label,
+      on: s.mode === label,
+      style: modeBase + (s.mode === label ? 'background: #FFFFFF; color: #2E140A; box-shadow: 0 2px 8px rgba(43,27,23,0.10)' : 'background: transparent; color: #6E6762'),
+      pick: () => this.setState({ mode: label }),
+    }));
+    const data = [
+      { name: 'Leve', meta: '3 min · Econômico · 4 lugares', price: 'R$ 18,40', cents: 1840 },
+      { name: 'Plus', meta: '5 min · Mais conforto, com ar', price: 'R$ 24,90', cents: 2490 },
+      { name: 'Grupo', meta: '7 min · Até 6 pessoas', price: 'R$ 32,60', cents: 3260 },
+    ];
+    const rideBase = 'display: flex; align-items: center; gap: 12px; width: 100%; padding: 10px 14px 10px 10px; border-radius: 20px; font-family: "Plus Jakarta Sans", sans-serif; color: #2E140A; ';
+    const rides = data.map((r) => ({
+      ...r,
+      on: s.ride === r.name,
+      style: rideBase + (s.ride === r.name ? 'background: #FFE9D1; border: 2px solid #B4531A' : 'background: #FFFFFF; border: 2px solid #F0ECE6'),
+      pick: () => this.setState({ ride: r.name, offerCents: r.cents }),
+    }));
+    const prefBase = 'height: 36px; padding: 0 14px; border-radius: 999px; font: 600 13px "Plus Jakarta Sans", sans-serif; ';
+    const prefs = ['Geral', 'Mulher', 'Homem', 'LGBTQIA+'].map((label) => ({
+      label,
+      on: s.pref === label,
+      style: prefBase + (s.pref === label ? 'border: 0; background: #3A1A0F; color: #FFFFFF' : 'border: 1.5px solid #E4DFD8; background: #FFFFFF; color: #2E140A'),
+      pick: () => this.setState({ pref: label }),
+    }));
+    const offer = 'R$ ' + (s.offerCents / 100).toFixed(2).replace('.', ',');
+    return {
+      modes, rides, prefs, offer,
+      selectedName: s.ride,
+      up: () => this.setState({ offerCents: s.offerCents + 50 }),
+      down: () => this.setState({ offerCents: Math.max(500, s.offerCents - 50) }),
+    };
+  }
+}
+</script>
+</body>
+</html>

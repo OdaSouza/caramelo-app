@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Caramelo · Suas viagens</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#B4531A}a:hover{color:#5A1E0E}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #F3F1ED; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #2E140A; overflow: hidden; padding: 24px 20px 0; display: flex; flex-direction: column; gap: 16px">
+
+  <div style="display: flex; align-items: center; justify-content: space-between">
+    <h1 style="margin: 0; font-size: 24px; font-weight: 700; letter-spacing: -0.3px">Suas viagens</h1>
+    <button type="button" aria-label="Filtrar" style="width: 48px; height: 48px; border-radius: 50%; border: 0; background: #FFFFFF; color: #2E140A; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg></button>
+  </div>
+
+  <section style="background: #3A1A0F; color: #FFFFFF; border-radius: 24px; padding: 20px; display: flex; flex-direction: column; gap: 14px">
+    <div style="display: flex; justify-content: space-between; align-items: center">
+      <span style="font-size: 13px; color: #CFC7BF">Março</span>
+      <span style="height: 28px; padding: 0 10px; border-radius: 999px; background: rgba(240,138,28,0.18); color: #F08A1C; font-size: 12px; font-weight: 700; display: flex; align-items: center">3 viagens</span>
+    </div>
+    <div style="display: flex; align-items: baseline; gap: 8px"><span style="font-size: 40px; font-weight: 800; letter-spacing: -1px">R$ 75,90</span><span style="font-size: 13px; color: #CFC7BF">no mês</span></div>
+    <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+      <div style="border-radius: 14px; background: rgba(255,255,255,0.08); padding: 10px; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 11px; color: #CFC7BF">Leve</span><span style="font-size: 15px; font-weight: 700">R$ 18,40</span></div>
+      <div style="border-radius: 14px; background: rgba(255,255,255,0.08); padding: 10px; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 11px; color: #CFC7BF">Plus</span><span style="font-size: 15px; font-weight: 700">R$ 24,90</span></div>
+      <div style="border-radius: 14px; background: rgba(255,255,255,0.08); padding: 10px; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 11px; color: #CFC7BF">Grupo</span><span style="font-size: 15px; font-weight: 700">R$ 32,60</span></div>
+    </div>
+  </section>
+
+  <div style="display: flex; gap: 6px">
+    <span style="height: 36px; padding: 0 14px; border-radius: 999px; background: #B4531A; color: #FFFFFF; font-size: 13px; font-weight: 700; display: flex; align-items: center">Todas</span>
+    <span style="height: 36px; padding: 0 14px; border-radius: 999px; background: #FFFFFF; font-size: 13px; font-weight: 600; display: flex; align-items: center">Carro</span>
+    <span style="height: 36px; padding: 0 14px; border-radius: 999px; background: #FFFFFF; font-size: 13px; font-weight: 600; display: flex; align-items: center">Moto</span>
+    <span style="height: 36px; padding: 0 14px; border-radius: 999px; background: #FFFFFF; font-size: 13px; font-weight: 600; display: flex; align-items: center">Entregas</span>
+  </div>
+
+  <section style="background: #FFFFFF; border-radius: 24px; padding: 6px 16px; display: flex; flex-direction: column">
+    <div style="display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid #F0ECE6">
+      <span style="width: 44px; height: 44px; border-radius: 14px; background: #FFE9D1; color: #5A1E0E; display: flex; align-items: center; justify-content: center; flex: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg></span>
+      <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0"><span style="font-size: 15px; font-weight: 700">Shopping Cidade Jardim</span><span style="font-size: 12px; color: #6E6762">12 mar, 14:30 · Carlos Silva · 4,9 ★</span><span style="font-size: 12px; color: #6E6762">Leve</span></div>
+      <span style="margin-left: auto; font-size: 15px; font-weight: 800">R$ 18,40</span>
+    </div>
+    <div style="display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid #F0ECE6">
+      <span style="width: 44px; height: 44px; border-radius: 14px; background: #F3F1ED; color: #2E140A; display: flex; align-items: center; justify-content: center; flex: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg></span>
+      <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0"><span style="font-size: 15px; font-weight: 700">Av. Faria Lima, 3400</span><span style="font-size: 12px; color: #6E6762">10 mar, 09:15 · Fernanda Lima · 5,0 ★</span><span style="font-size: 12px; color: #6E6762">Plus</span></div>
+      <span style="margin-left: auto; font-size: 15px; font-weight: 800">R$ 24,90</span>
+    </div>
+    <div style="display: flex; gap: 12px; padding: 14px 0; border-bottom: 1px solid #F0ECE6">
+      <span style="width: 44px; height: 44px; border-radius: 14px; background: #F3F1ED; color: #2E140A; display: flex; align-items: center; justify-content: center; flex: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/></svg></span>
+      <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0"><span style="font-size: 15px; font-weight: 700">Rua Augusta, 500</span><span style="font-size: 12px; color: #6E6762">05 mar, 20:00 · Lucas Almeida · 4,8 ★</span><span style="font-size: 12px; color: #6E6762">Grupo</span></div>
+      <span style="margin-left: auto; font-size: 15px; font-weight: 800">R$ 32,60</span>
+    </div>
+    <div style="display: flex; gap: 12px; padding: 14px 0">
+      <span style="width: 44px; height: 44px; border-radius: 14px; background: #F3F1ED; color: #2E140A; display: flex; align-items: center; justify-content: center; flex: none"><svg aria-hidden="true" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2"/><circle cx="7" cy="17" r="2"/><path d="M9 17h6"/><circle cx="17" cy="17" r="2"/></svg></span>
+      <div style="display: flex; flex-direction: column; gap: 3px; min-width: 0"><span style="font-size: 15px; font-weight: 700">Aeroporto de Congonhas</span><span style="font-size: 12px; color: #6E6762">28 fev, 11:45 · Rafael Costa</span><span style="font-size: 12px; color: #6E6762">Carro</span></div>
+      <span style="margin-left: auto; font-size: 15px; font-weight: 800">R$ 38,00</span>
+    </div>
+  </section>
+
+  <nav aria-label="Navegação principal" style="position: absolute; left: 50%; bottom: 20px; margin-left: -118px; width: 236px; height: 60px; box-sizing: border-box; display: flex; justify-content: space-between; padding: 6px; border-radius: 999px; background: #FFFFFF; box-shadow: 0 10px 30px rgba(43,27,23,0.16)">
+    <a href="Inicio.dc.html" aria-label="Início" style="width: 48px; height: 48px; border-radius: 50%; color: #6E6762; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></a>
+    <a href="Historico.dc.html" aria-label="Viagens" aria-current="page" style="width: 48px; height: 48px; border-radius: 50%; background: #B4531A; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></a>
+    <a href="#" aria-label="Carteira" style="width: 48px; height: 48px; border-radius: 50%; color: #6E6762; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></a>
+    <a href="Perfil.dc.html" aria-label="Perfil" style="width: 48px; height: 48px; border-radius: 50%; color: #6E6762; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg></a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

@@ -1,25 +1,65 @@
 package com.draxio.mapa_teste
 
+import android.content.Intent
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.automirrored.rounded.Logout
+import androidx.compose.material.icons.rounded.Badge
+import androidx.compose.material.icons.rounded.Block
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.DeleteForever
+import androidx.compose.material.icons.rounded.Diversity3
+import androidx.compose.material.icons.rounded.Groups
+import androidx.compose.material.icons.rounded.History
+import androidx.compose.material.icons.rounded.Home
+import androidx.compose.material.icons.rounded.Man
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.PersonAdd
+import androidx.compose.material.icons.rounded.Place
+import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.Woman
 import androidx.compose.material3.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import com.draxio.mapa_teste.ui.components.CarameloCard
+import com.draxio.mapa_teste.ui.components.CarameloChip
+import com.draxio.mapa_teste.ui.components.CarameloDivider
+import com.draxio.mapa_teste.ui.components.CarameloListRow
+import com.draxio.mapa_teste.ui.components.CarameloPillButton
+import com.draxio.mapa_teste.ui.components.CarameloSectionLabel
+import com.draxio.mapa_teste.ui.components.CarameloStatusPill
+import com.draxio.mapa_teste.ui.components.CarameloSwitchRow
+import com.draxio.mapa_teste.ui.components.CarameloTextField
+import com.draxio.mapa_teste.ui.components.CarameloTopBar
+import com.draxio.mapa_teste.ui.components.PillStyle
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.LifecycleOwner
 import com.draxio.mapa_teste.ui.theme.*
 
 class SettingsActivity : ComponentActivity() {
@@ -27,20 +67,12 @@ class SettingsActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val context = androidx.compose.ui.platform.LocalContext.current
-            var isDarkMode by remember { mutableStateOf(ThemePreferences.isDarkMode(context)) }
-
-            Mapa_testeTheme(darkTheme = isDarkMode) {
+            Mapa_testeTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
                     SettingsScreen(
-                        isDarkMode = isDarkMode,
-                        onToggleDarkMode = { enabled ->
-                            isDarkMode = enabled
-                            ThemePreferences.setDarkMode(context, enabled)
-                        },
                         onClose = { finish() },
                         onToast = { message ->
                             Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
@@ -62,31 +94,63 @@ data class BlockedDriver(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
-    isDarkMode: Boolean = false,
-    onToggleDarkMode: (Boolean) -> Unit = {},
+    // Por padrão usa o estado global do tema (ThemeState); o interruptor grava nele
+    isDarkMode: Boolean = ThemeState.darkMode ?: isSystemInDarkTheme(),
+    onToggleDarkMode: ((Boolean) -> Unit)? = null,
     onClose: () -> Unit = {},
     onToast: (String) -> Unit = {}
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
+    val context = LocalContext.current
 
-    var showTripHistorySubscreen by remember { mutableStateOf(false) }
-    var showDriverBlockSubscreen by remember { mutableStateOf(false) }
+    // Volta para o Login limpando a pilha de telas
+    val goToLogin = {
+        val intent = Intent(context, LoginActivity::class.java)
+            .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        context.startActivity(intent)
+    }
+    var showDeleteDataDialog by rememberSaveable { mutableStateOf(false) }
 
-    // Estado do Endereço Cadastrado (carregado do Repositório Local)
-    var streetAddress by remember { mutableStateOf("${CarameloRepository.getUserLogradouro(context)}, ${CarameloRepository.getUserNumber(context)} - ${CarameloRepository.getUserBairro(context)}") }
-    var cityAddress by remember { mutableStateOf("${CarameloRepository.getUserCity(context)} - ${CarameloRepository.getUserState(context)}") }
-    var cepAddress by remember { mutableStateOf(CarameloRepository.getUserCep(context)) }
+    var showTripHistorySubscreen by rememberSaveable { mutableStateOf(false) }
+    var showDriverBlockSubscreen by rememberSaveable { mutableStateOf(false) }
+    // Voltar do sistema numa subtela volta às Configurações (não fecha tudo)
+    androidx.activity.compose.BackHandler(enabled = showTripHistorySubscreen || showDriverBlockSubscreen) {
+        showTripHistorySubscreen = false
+        showDriverBlockSubscreen = false
+    }
+
+    // Endereço de cadastro: um campo para cada chave do repositório (sem recompor texto)
+    var addrStreet by rememberSaveable { mutableStateOf(CarameloRepository.getUserLogradouro(context)) }
+    var addrNumber by rememberSaveable { mutableStateOf(CarameloRepository.getUserNumber(context)) }
+    var addrBairro by rememberSaveable { mutableStateOf(CarameloRepository.getUserBairro(context)) }
+    var addrCep by rememberSaveable { mutableStateOf(CarameloRepository.getUserCep(context)) }
+    var addrCity by rememberSaveable { mutableStateOf(CarameloRepository.getUserCity(context)) }
+    var addrState by rememberSaveable { mutableStateOf(CarameloRepository.getUserState(context)) }
+
+    // Cadastro de motorista e verificação: relidos quando a tela volta a ficar visível
+    var isDriverRegistered by remember { mutableStateOf(CarameloRepository.isDriverRegistered(context)) }
+    var driverVerificationStatus by remember { mutableStateOf(CarameloRepository.getDriverVerificationStatus(context)) }
+    DisposableEffect(context) {
+        val owner = context as? LifecycleOwner
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                isDriverRegistered = CarameloRepository.isDriverRegistered(context)
+                driverVerificationStatus = CarameloRepository.getDriverVerificationStatus(context)
+            }
+        }
+        owner?.lifecycle?.addObserver(observer)
+        onDispose { owner?.lifecycle?.removeObserver(observer) }
+    }
 
     // Estado de Bloqueio de Motoristas (carregado do Repositório Local)
-    var autoBlockLowRating by remember { mutableStateOf(true) }
-    var enforceNoBlockedMatch by remember { mutableStateOf(true) }
+    var autoBlockLowRating by rememberSaveable { mutableStateOf(CarameloRepository.isAutoBlockLowRating(context)) }
+    var enforceNoBlockedMatch by rememberSaveable { mutableStateOf(CarameloRepository.isEnforceNoBlockedMatch(context)) }
     val initialBlockedList = remember { CarameloRepository.getBlockedDrivers(context) }
     val blockedDrivers = remember { mutableStateListOf<BlockedDriver>().apply { addAll(initialBlockedList) } }
 
     // Outras Configurações
-    var defaultDriverPref by remember { mutableStateOf(CarameloRepository.getDefaultDriverPreference(context)) }
-    var notificationsEnabled by remember { mutableStateOf(true) }
-    var shareRouteSafety by remember { mutableStateOf(true) }
+    var defaultDriverPref by rememberSaveable { mutableStateOf(CarameloRepository.getDefaultDriverPreference(context)) }
+    var notificationsEnabled by rememberSaveable { mutableStateOf(CarameloRepository.isNotificationsEnabled(context)) }
+    var shareRouteSafety by rememberSaveable { mutableStateOf(CarameloRepository.isShareRouteEnabled(context)) }
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -94,17 +158,23 @@ fun SettingsScreen(
     ) {
         when {
             showTripHistorySubscreen -> {
-                CarameloTripHistoryView(
-                    onBackToSettings = { showTripHistorySubscreen = false }
+                CarameloTripHistoryScreen(
+                    onClose = { showTripHistorySubscreen = false }
                 )
             }
             showDriverBlockSubscreen -> {
                 CarameloDriverBlockView(
                     blockedDrivers = blockedDrivers,
                     autoBlockLowRating = autoBlockLowRating,
-                    onToggleAutoBlock = { autoBlockLowRating = it },
+                    onToggleAutoBlock = {
+                        autoBlockLowRating = it
+                        CarameloRepository.setAutoBlockLowRating(context, it)
+                    },
                     enforceNoBlockedMatch = enforceNoBlockedMatch,
-                    onToggleEnforceNoMatch = { enforceNoBlockedMatch = it },
+                    onToggleEnforceNoMatch = {
+                        enforceNoBlockedMatch = it
+                        CarameloRepository.setEnforceNoBlockedMatch(context, it)
+                    },
                     onAddBlockedDriver = { name, reason ->
                         if (name.isNotBlank()) {
                             blockedDrivers.add(
@@ -128,552 +198,432 @@ fun SettingsScreen(
                 )
             }
             else -> {
+                val userName = remember { CarameloRepository.getUserName(context) }
+                val userInitials = remember(userName) {
+                    userName.trim().split(" ").filter { it.isNotBlank() }
+                        .let { parts ->
+                            when {
+                                parts.isEmpty() -> "?"
+                                parts.size == 1 -> parts[0].take(2)
+                                else -> "${parts.first().first()}${parts.last().first()}"
+                            }
+                        }
+                        .uppercase()
+                }
+                val isDriverVerified = driverVerificationStatus == CarameloRepository.VERIFICATION_APPROVED
+
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(20.dp)
+                        .systemBarsPadding()
                         .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 20.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Header
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        CarameloLogo()
+                    CarameloTopBar(title = "Configurações", onBack = onClose)
 
-                        OutlinedButton(
-                            onClick = onClose,
-                            shape = RoundedCornerShape(12.dp),
-                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                    // PERFIL
+                    CarameloCard {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
                         ) {
-                            Text(
-                                text = "✕ Voltar",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(24.dp))
-
-                    Text(
-                        text = "— PREFERÊNCIAS E CONTA",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.sp
-                    )
-
-                    Text(
-                        text = "Configurações",
-                        fontSize = 28.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground,
-                        fontFamily = FontFamily.Serif
-                    )
-
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // 1. MODO NOTURNO (TEMA ESCURO)
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "🎨 Aparência e Tema",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .background(MaterialTheme.colorScheme.primaryContainer, CircleShape),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(
-                                        text = "🌙 Modo Noturno (Tema Escuro)",
-                                        fontSize = 14.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "Ativar tons escuros no aplicativo para proteger a visão",
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                                Switch(
-                                    checked = isDarkMode,
-                                    onCheckedChange = {
-                                        onToggleDarkMode(it)
-                                        onToast(if (it) "Modo Noturno ativado!" else "Modo Claro ativado!")
-                                    },
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = MaterialTheme.colorScheme.primary
-                                    )
+                                Text(
+                                    text = userInitials,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
                                 )
                             }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // CARD DE CADASTRO DE MOTORISTA PARCEIRO (CNH)
-                    val context = androidx.compose.ui.platform.LocalContext.current
-                    val isDriverRegistered = remember {
-                        CarameloRepository.isDriverRegistered(context)
-                    }
-
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                val intent = android.content.Intent(context, DriverRegisterActivity::class.java)
-                                context.startActivity(intent)
-                            },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = androidx.compose.foundation.BorderStroke(
-                            width = if (isDriverRegistered) 1.5.dp else 1.dp,
-                            color = if (isDriverRegistered) CarameloGreen else MaterialTheme.colorScheme.outline
-                        )
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
+                            Column(
                                 modifier = Modifier.weight(1f),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Text(text = "🪪", fontSize = 24.sp)
-                                Column {
-                                    Text(
-                                        text = if (isDriverRegistered) "Motorista Parceiro Cadastrado" else "Seja um Motorista Parceiro",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = if (isDriverRegistered) "Sua CNH e dados de motorista foram validados" else "Cadastre sua CNH para dirigir pelo Caramelo",
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-
-                            Surface(
-                                shape = RoundedCornerShape(20.dp),
-                                color = if (isDriverRegistered) CarameloGreen.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surfaceVariant
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
                             ) {
                                 Text(
-                                    text = if (isDriverRegistered) "🟢 Cadastrado" else "Cadastrar",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isDriverRegistered) CarameloGreen else MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // 2. OPÇÃO DE HISTÓRICO DE VIAGENS
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showTripHistorySubscreen = true },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Text(text = "🕒", fontSize = 24.sp)
-                                Column {
-                                    Text(
-                                        text = "Histórico de Viagens",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "Consulte e revise suas corridas anteriores",
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                            Text(text = "›", fontSize = 20.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // 3. OPÇÃO DE BLOQUEIO DE MOTORISTAS
-                    Card(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { showDriverBlockSubscreen = true },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp)
-                            ) {
-                                Text(text = "🚫", fontSize = 24.sp)
-                                Column {
-                                    Text(
-                                        text = "Bloqueio de Motoristas",
-                                        fontSize = 16.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                    Text(
-                                        text = "${blockedDrivers.size} motoristas na lista de bloqueio",
-                                        fontSize = 12.sp,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        fontWeight = FontWeight.SemiBold
-                                    )
-                                }
-                            }
-                            Text(text = "›", fontSize = 20.sp, color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold)
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // 4. ENDEREÇO DE CADASTRO
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "📍 Endereço de Cadastro",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            // CEP em primeiro lugar
-                            OutlinedTextField(
-                                value = cepAddress,
-                                onValueChange = { cepAddress = it },
-                                label = { Text("CEP (ex: 01310-100)") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                shape = RoundedCornerShape(10.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                                )
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            OutlinedTextField(
-                                value = streetAddress,
-                                onValueChange = { streetAddress = it },
-                                label = { Text("Logradouro, Número e Bairro") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                shape = RoundedCornerShape(10.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                                )
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            OutlinedTextField(
-                                value = cityAddress,
-                                onValueChange = { cityAddress = it },
-                                label = { Text("Cidade / UF") },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
-                                shape = RoundedCornerShape(10.dp),
-                                colors = OutlinedTextFieldDefaults.colors(
-                                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                                    focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                                    unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                                )
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            Button(
-                                onClick = {
-                                    CarameloRepository.saveUserProfile(
-                                        context = context,
-                                        name = CarameloRepository.getUserName(context),
-                                        email = CarameloRepository.getUserEmail(context),
-                                        logradouro = streetAddress,
-                                        number = "",
-                                        bairro = "",
-                                        complement = "",
-                                        cep = cepAddress,
-                                        city = cityAddress,
-                                        state = ""
-                                    )
-                                    onToast("Endereço salvo localmente com sucesso!")
-                                },
-                                shape = RoundedCornerShape(10.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                            ) {
-                                Text("Salvar Endereço", color = Color.White, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // 5. PREFERÊNCIA DE MOTORISTA PADRÃO / FIXA
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "🚘 Preferência de Motorista Padrão / Fixa",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Perfil de motorista preferido (Geral, LGBTQIA+, Mulher, Homem)",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            val options = listOf("Geral", "LGBTQIA+", "Mulher", "Homem")
-                            options.forEach { option ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            defaultDriverPref = option
-                                            CarameloRepository.saveDefaultDriverPreference(context, option)
-                                            onToast("Preferência padrão salva: $option")
-                                        }
-                                        .padding(vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    RadioButton(
-                                        selected = (defaultDriverPref == option),
-                                        onClick = {
-                                            defaultDriverPref = option
-                                            CarameloRepository.saveDefaultDriverPreference(context, option)
-                                            onToast("Preferência padrão salva: $option")
-                                        },
-                                        colors = RadioButtonDefaults.colors(selectedColor = MaterialTheme.colorScheme.primary)
-                                    )
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text(
-                                        text = option,
-                                        fontSize = 14.sp,
-                                        fontWeight = if (defaultDriverPref == option) FontWeight.Bold else FontWeight.Normal,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            var isFixedInSettings by remember { mutableStateOf(CarameloRepository.isFixedPreferenceEnabled(context)) }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "📌 Manter preferência fixa para todas as viagens",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.SemiBold,
+                                    text = userName,
+                                    style = MaterialTheme.typography.titleMedium,
                                     color = MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.weight(1f)
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
                                 )
-                                Switch(
-                                    checked = isFixedInSettings,
-                                    onCheckedChange = {
-                                        isFixedInSettings = it
-                                        CarameloRepository.saveFixedPreferenceEnabled(context, it)
-                                    },
-                                    colors = SwitchDefaults.colors(
-                                        checkedThumbColor = Color.White,
-                                        checkedTrackColor = MaterialTheme.colorScheme.primary
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Icon(
+                                        Icons.Rounded.Star,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(16.dp),
+                                        tint = MaterialTheme.colorScheme.primary
                                     )
-                                )
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // 6. PRECIFICAÇÃO E INCREMENTO DOS BOTÕES (+ / -)
-                    var priceStep by remember { mutableStateOf(CarameloRepository.getPriceIncrementStep(context)) }
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "💰 Valor Adicionado pelos Botões (+ / -)",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Defina quanto cada clique nos botões '+' e '-' adiciona ou subtrai no valor da oferta",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            val steps = listOf("R$ 0,50", "R$ 1,00", "R$ 2,00", "R$ 5,00")
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                steps.forEach { step ->
-                                    val isSelected = (priceStep == step)
-                                    Surface(
-                                        modifier = Modifier
-                                            .weight(1f)
-                                            .clickable {
-                                                priceStep = step
-                                                CarameloRepository.savePriceIncrementStep(context, step)
-                                                onToast("Valor dos botões definido para $step")
-                                            },
-                                        shape = RoundedCornerShape(10.dp),
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
-                                    ) {
-                                        Box(
-                                            modifier = Modifier.padding(vertical = 8.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = step,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                    }
+                                    Text(
+                                        text = "4,92 de avaliação",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
                                 }
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(14.dp))
+                    // 1. APARÊNCIA (MODO NOTURNO)
+                    CarameloSectionLabel("Aparência")
+                    CarameloCard(contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
+                        CarameloSwitchRow(
+                            icon = Icons.Rounded.DarkMode,
+                            title = "Modo noturno",
+                            subtitle = "Tons escuros para proteger a visão",
+                            checked = isDarkMode,
+                            onCheckedChange = {
+                                if (onToggleDarkMode != null) onToggleDarkMode(it) else ThemeState.setDarkMode(context, it)
+                                onToast(if (it) "Modo Noturno ativado!" else "Modo Claro ativado!")
+                            }
+                        )
+                    }
 
-                    // 7. NOTIFICAÇÕES E SEGURANÇA
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp)) {
-                            Text(
-                                text = "🔔 Notificações e Segurança",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
+                    // 2. ENDEREÇO DE CADASTRO
+                    CarameloSectionLabel("Endereço")
+                    CarameloCard {
+                        val savedAddressText = listOf(
+                            listOf(addrStreet.trim(), addrNumber.trim()).filter { it.isNotEmpty() }.joinToString(", "),
+                            addrBairro.trim(),
+                            listOf(addrCity.trim(), addrState.trim()).filter { it.isNotEmpty() }.joinToString(" - ")
+                        ).filter { it.isNotEmpty() }.joinToString(" • ")
+                        CarameloListRow(
+                            icon = Icons.Rounded.Home,
+                            title = "Endereço de cadastro",
+                            subtitle = savedAddressText.ifEmpty { "Nenhum endereço cadastrado" },
+                            trailing = null
+                        )
 
-                            Spacer(modifier = Modifier.height(8.dp))
+                        CarameloTextField(
+                            value = addrStreet,
+                            onValueChange = { addrStreet = it },
+                            label = "Rua",
+                            leadingIcon = Icons.Rounded.Place
+                        )
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(text = "Notificações de Corrida", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-                                Switch(
-                                    checked = notificationsEnabled,
-                                    onCheckedChange = { notificationsEnabled = it },
-                                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = MaterialTheme.colorScheme.primary)
+                        CarameloTextField(
+                            value = addrNumber,
+                            onValueChange = { addrNumber = it },
+                            label = "Número"
+                        )
+
+                        CarameloTextField(
+                            value = addrBairro,
+                            onValueChange = { addrBairro = it },
+                            label = "Bairro"
+                        )
+
+                        CarameloTextField(
+                            value = addrCep,
+                            onValueChange = { addrCep = it },
+                            label = "CEP",
+                            placeholder = "ex: 01310-100"
+                        )
+
+                        CarameloTextField(
+                            value = addrCity,
+                            onValueChange = { addrCity = it },
+                            label = "Cidade"
+                        )
+
+                        CarameloTextField(
+                            value = addrState,
+                            onValueChange = { addrState = it.take(2).uppercase() },
+                            label = "UF",
+                            placeholder = "ex: SP"
+                        )
+
+                        CarameloPillButton(
+                            text = "Salvar endereço",
+                            onClick = {
+                                CarameloRepository.saveUserProfile(
+                                    context = context,
+                                    name = CarameloRepository.getUserName(context),
+                                    email = CarameloRepository.getUserEmail(context),
+                                    logradouro = addrStreet.trim(),
+                                    number = addrNumber.trim(),
+                                    bairro = addrBairro.trim(),
+                                    complement = CarameloRepository.getUserComplement(context),
+                                    cep = addrCep.trim(),
+                                    city = addrCity.trim(),
+                                    state = addrState.trim()
+                                )
+                                onToast("Endereço salvo localmente com sucesso!")
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            style = PillStyle.Primary
+                        )
+                    }
+
+                    // 3. PREFERÊNCIA DE MOTORISTA PADRÃO / FIXA
+                    CarameloSectionLabel("Motorista preferido")
+                    var isFixedInSettings by rememberSaveable { mutableStateOf(CarameloRepository.isFixedPreferenceEnabled(context)) }
+                    CarameloCard {
+                        Text(
+                            text = "Perfil de motorista preferido",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        val options = listOf(
+                            "Geral" to Icons.Rounded.Groups,
+                            "LGBTQIA+" to Icons.Rounded.Diversity3,
+                            "Mulher" to Icons.Rounded.Woman,
+                            "Homem" to Icons.Rounded.Man
+                        )
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            options.forEach { (option, optionIcon) ->
+                                CarameloChip(
+                                    label = option,
+                                    selected = defaultDriverPref == option,
+                                    icon = optionIcon,
+                                    onClick = {
+                                        defaultDriverPref = option
+                                        CarameloRepository.saveDefaultDriverPreference(context, option)
+                                        onToast("Preferência padrão salva: $option")
+                                    }
                                 )
                             }
+                        }
+                        CarameloDivider(startIndent = 0.dp)
+                        CarameloSwitchRow(
+                            icon = Icons.Rounded.CheckCircle,
+                            title = "Preferência fixa",
+                            subtitle = "Manter em todas as viagens",
+                            checked = isFixedInSettings,
+                            onCheckedChange = {
+                                isFixedInSettings = it
+                                CarameloRepository.saveFixedPreferenceEnabled(context, it)
+                            }
+                        )
+                    }
 
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(text = "Compartilhar Rota em Tempo Real", fontSize = 14.sp, color = MaterialTheme.colorScheme.onSurface)
-                                Switch(
-                                    checked = shareRouteSafety,
-                                    onCheckedChange = { shareRouteSafety = it },
-                                    colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = MaterialTheme.colorScheme.primary)
+                    // 4. PRECIFICAÇÃO E INCREMENTO DOS BOTÕES (+ / -)
+                    CarameloSectionLabel("Valor dos botões + / −")
+                    var priceStep by rememberSaveable { mutableStateOf(CarameloRepository.getPriceIncrementStep(context)) }
+                    CarameloCard {
+                        Text(
+                            text = "Quanto cada toque em + ou − soma ou tira do valor da oferta",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        val steps = listOf("R$ 0,50", "R$ 1,00", "R$ 2,00", "R$ 5,00")
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            steps.forEach { step ->
+                                CarameloChip(
+                                    label = step,
+                                    selected = priceStep == step,
+                                    onClick = {
+                                        priceStep = step
+                                        CarameloRepository.savePriceIncrementStep(context, step)
+                                        onToast("Valor dos botões definido para $step")
+                                    }
                                 )
                             }
                         }
                     }
 
-                    Spacer(modifier = Modifier.height(24.dp))
+                    // 5. NOTIFICAÇÕES E SEGURANÇA
+                    CarameloSectionLabel("Notificações e segurança")
+                    CarameloCard(contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
+                        CarameloSwitchRow(
+                            icon = Icons.Rounded.Notifications,
+                            title = "Notificações de corrida",
+                            subtitle = "Avisos sobre o motorista e a viagem",
+                            checked = notificationsEnabled,
+                            onCheckedChange = {
+                                notificationsEnabled = it
+                                CarameloRepository.setNotificationsEnabled(context, it)
+                            }
+                        )
+                        CarameloDivider()
+                        CarameloSwitchRow(
+                            icon = Icons.Rounded.Share,
+                            title = "Compartilhar rota",
+                            subtitle = "Em tempo real com contatos",
+                            checked = shareRouteSafety,
+                            onCheckedChange = {
+                                shareRouteSafety = it
+                                CarameloRepository.setShareRouteEnabled(context, it)
+                            }
+                        )
+                        CarameloDivider()
+                        CarameloListRow(
+                            icon = Icons.Rounded.Block,
+                            title = "Motoristas bloqueados",
+                            subtitle = if (blockedDrivers.isEmpty()) "Nenhum motorista bloqueado"
+                            else blockedDrivers.joinToString(", ") { it.name },
+                            onClick = { showDriverBlockSubscreen = true },
+                            trailing = {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .defaultMinSize(minWidth = 26.dp, minHeight = 26.dp)
+                                            .background(MaterialTheme.colorScheme.primary, CircleShape)
+                                            .padding(horizontal = 8.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "${blockedDrivers.size}",
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onPrimary
+                                        )
+                                    }
+                                    Icon(
+                                        Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        )
+                    }
 
-                    Button(
-                        onClick = { onToast("Sua conta foi desconectada") },
+                    // 6. ATIVIDADE (HISTÓRICO DE VIAGENS)
+                    CarameloSectionLabel("Atividade")
+                    CarameloCard(contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
+                        CarameloListRow(
+                            icon = Icons.Rounded.History,
+                            title = "Histórico de viagens",
+                            subtitle = "Consulte e revise suas corridas anteriores",
+                            onClick = { showTripHistorySubscreen = true }
+                        )
+                    }
+
+                    // 7. CADASTRO DE MOTORISTA PARCEIRO (CNH)
+                    Surface(
+                        onClick = {
+                            // Já cadastrado: abre o status da verificação de segurança
+                            val target = if (isDriverRegistered) SecurityCheckActivity::class.java else DriverRegisterActivity::class.java
+                            val intent = android.content.Intent(context, target)
+                            context.startActivity(intent)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(24.dp),
+                        color = if (isDriverRegistered) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.primary,
+                        contentColor = if (isDriverRegistered) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onPrimary,
+                        shadowElevation = 1.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(18.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            Icon(
+                                if (isDriverRegistered) Icons.Rounded.Badge else Icons.Rounded.PersonAdd,
+                                contentDescription = null,
+                                modifier = Modifier.size(28.dp),
+                                tint = if (isDriverRegistered) CarameloGreen else LocalContentColor.current
+                            )
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp)
+                            ) {
+                                Text(
+                                    text = if (isDriverRegistered) "Motorista parceiro cadastrado" else "Seja motorista Caramelo",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                                Text(
+                                    text = when {
+                                        !isDriverRegistered -> "Cadastre sua CNH e passe pela verificação de segurança"
+                                        isDriverVerified -> "Identidade e antecedentes verificados"
+                                        else -> "Verificação de segurança em análise"
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = LocalContentColor.current.copy(alpha = 0.85f)
+                                )
+                                if (isDriverRegistered) {
+                                    CarameloStatusPill(
+                                        text = if (isDriverVerified) "Verificado" else "Em análise",
+                                        dotColor = if (isDriverVerified) CarameloGreen else CarameloOrange,
+                                        modifier = Modifier.padding(top = 6.dp)
+                                    )
+                                }
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp)
+                                    .background(
+                                        if (isDriverRegistered) MaterialTheme.colorScheme.surfaceVariant
+                                        else Color.White.copy(alpha = 0.2f),
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    Icons.AutoMirrored.Rounded.ArrowForward,
+                                    contentDescription = if (isDriverRegistered) "Ver cadastro de motorista" else "Cadastrar como motorista",
+                                    modifier = Modifier.size(22.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    // SAIR DA CONTA
+                    CarameloPillButton(
+                        text = "Sair da conta",
+                        onClick = {
+                            CarameloRepository.setLoggedIn(context, false)
+                            goToLogin()
+                        },
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(50.dp),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFC0392B))
-                    ) {
-                        Text(text = "Sair da Conta", color = Color.White, fontWeight = FontWeight.Bold)
+                            .padding(top = 8.dp),
+                        style = PillStyle.Outline,
+                        icon = Icons.AutoMirrored.Rounded.Logout
+                    )
+
+                    // APAGAR MEUS DADOS
+                    CarameloPillButton(
+                        text = "Apagar meus dados",
+                        onClick = { showDeleteDataDialog = true },
+                        modifier = Modifier.fillMaxWidth(),
+                        style = PillStyle.Outline,
+                        icon = Icons.Rounded.DeleteForever
+                    )
+
+                    if (showDeleteDataDialog) {
+                        AlertDialog(
+                            onDismissRequest = { showDeleteDataDialog = false },
+                            title = { Text("Apagar meus dados?") },
+                            text = {
+                                Text("Isso apaga do aparelho seu perfil, endereço, histórico, motoristas bloqueados e dados de motorista. Não dá para desfazer.")
+                            },
+                            confirmButton = {
+                                TextButton(onClick = {
+                                    showDeleteDataDialog = false
+                                    CarameloRepository.clearAllUserData(context)
+                                    ThemeState.darkMode = null
+                                    goToLogin()
+                                }) { Text("Apagar") }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { showDeleteDataDialog = false }) { Text("Cancelar") }
+                            }
+                        )
                     }
+
+                    Spacer(modifier = Modifier.height(12.dp))
                 }
             }
         }
@@ -693,405 +643,152 @@ fun CarameloDriverBlockView(
     onRemoveBlockedDriver: (BlockedDriver) -> Unit,
     onBackToSettings: () -> Unit
 ) {
-    var newName by remember { mutableStateOf("") }
-    var newReason by remember { mutableStateOf("") }
+    var newName by rememberSaveable { mutableStateOf("") }
+    var newReason by rememberSaveable { mutableStateOf("") }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(20.dp)
+            .systemBarsPadding()
             .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CarameloLogo()
-
-            OutlinedButton(
-                onClick = onBackToSettings,
-                shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-            ) {
-                Text(
-                    text = "✕ Voltar às Configurações",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "— SEGURANÇA E PROTEÇÃO",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            letterSpacing = 1.sp
-        )
-
-        Text(
-            text = "Bloqueio de Motoristas",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
-            fontFamily = FontFamily.Serif
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
+        CarameloTopBar(title = "Motoristas bloqueados", onBack = onBackToSettings)
 
         // Regras Automáticas
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "🛡️ Regras de Bloqueio Automático",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Nunca emparelhar com motoristas bloqueados",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Switch(
-                        checked = enforceNoBlockedMatch,
-                        onCheckedChange = onToggleEnforceNoMatch,
-                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = MaterialTheme.colorScheme.primary)
-                    )
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Evitar motoristas com nota abaixo de 4.5 ★",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.weight(1f)
-                    )
-                    Switch(
-                        checked = autoBlockLowRating,
-                        onCheckedChange = onToggleAutoBlock,
-                        colors = SwitchDefaults.colors(checkedThumbColor = Color.White, checkedTrackColor = MaterialTheme.colorScheme.primary)
-                    )
-                }
-            }
+        CarameloSectionLabel("Regras de bloqueio automático")
+        CarameloCard(contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
+            CarameloSwitchRow(
+                icon = Icons.Rounded.Shield,
+                title = "Nunca emparelhar com bloqueados",
+                subtitle = "Motoristas da sua lista não aceitam suas corridas",
+                checked = enforceNoBlockedMatch,
+                onCheckedChange = onToggleEnforceNoMatch
+            )
+            CarameloDivider()
+            CarameloSwitchRow(
+                icon = Icons.Rounded.Star,
+                title = "Evitar nota abaixo de 4,5 ★",
+                subtitle = "Regra automática",
+                checked = autoBlockLowRating,
+                onCheckedChange = onToggleAutoBlock
+            )
         }
-
-        Spacer(modifier = Modifier.height(16.dp))
 
         // Form para adicionar motorista a bloquear
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(16.dp),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "➕ Bloquear Novo Motorista",
-                    fontSize = 15.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                OutlinedTextField(
-                    value = newName,
-                    onValueChange = { newName = it },
-                    label = { Text("Nome do Motorista") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = newReason,
-                    onValueChange = { newReason = it },
-                    label = { Text("Motivo do bloqueio (opcional)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    shape = RoundedCornerShape(10.dp),
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = MaterialTheme.colorScheme.surface,
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        focusedBorderColor = MaterialTheme.colorScheme.primary,
-                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface
-                    )
-                )
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Button(
-                    onClick = {
-                        if (newName.isNotBlank()) {
-                            onAddBlockedDriver(newName, newReason)
-                            newName = ""
-                            newReason = ""
-                        }
-                    },
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                ) {
-                    Text("Bloquear Motorista", color = Color.White, fontWeight = FontWeight.Bold)
-                }
-            }
+        CarameloSectionLabel("Bloquear novo motorista")
+        CarameloCard {
+            CarameloTextField(
+                value = newName,
+                onValueChange = { newName = it },
+                label = "Nome do motorista",
+                leadingIcon = Icons.Rounded.Person
+            )
+            CarameloTextField(
+                value = newReason,
+                onValueChange = { newReason = it },
+                label = "Motivo do bloqueio (opcional)"
+            )
+            CarameloPillButton(
+                text = "Bloquear motorista",
+                onClick = {
+                    if (newName.isNotBlank()) {
+                        onAddBlockedDriver(newName, newReason)
+                        newName = ""
+                        newReason = ""
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                style = PillStyle.Dark,
+                icon = Icons.Rounded.Block
+            )
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
-
-        Text(
-            text = "MOTORISTAS ATUALMENTE BLOQUEADOS (${blockedDrivers.size})",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            letterSpacing = 1.sp
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
+        CarameloSectionLabel("Bloqueados agora (${blockedDrivers.size})")
 
         if (blockedDrivers.isEmpty()) {
-            Surface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface
-            ) {
-                Text(
-                    text = "Nenhum motorista bloqueado.",
-                    modifier = Modifier.padding(16.dp),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 14.sp
-                )
-            }
-        } else {
-            blockedDrivers.forEach { driver ->
-                Card(
+            CarameloCard {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(vertical = 4.dp),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                        .padding(vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    Icon(
+                        Icons.Rounded.CheckCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(32.dp),
+                        tint = CarameloGreen
+                    )
+                    Text(
+                        text = "Nenhum motorista bloqueado.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+        } else {
+            CarameloCard(contentPadding = PaddingValues(horizontal = 18.dp, vertical = 4.dp)) {
+                blockedDrivers.forEachIndexed { index, driver ->
+                    if (index > 0) CarameloDivider()
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(12.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                Icons.Rounded.Block,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.error
+                            )
+                        }
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(2.dp)
+                        ) {
                             Text(
-                                text = "🚫 ${driver.name}",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
+                                text = driver.name,
+                                style = MaterialTheme.typography.titleSmall,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
                             Text(
                                 text = driver.carInfo,
-                                fontSize = 12.sp,
+                                style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                             Text(
                                 text = "Motivo: ${driver.reason}",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Medium
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
-
                         TextButton(
-                            onClick = { onRemoveBlockedDriver(driver) }
+                            onClick = { onRemoveBlockedDriver(driver) },
+                            modifier = Modifier.heightIn(min = 44.dp)
                         ) {
                             Text(
                                 text = "Desbloquear",
-                                color = MaterialTheme.colorScheme.primary,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 12.sp
+                                style = MaterialTheme.typography.labelLarge,
+                                color = MaterialTheme.colorScheme.primary
                             )
                         }
                     }
                 }
             }
         }
-    }
-}
 
-// TELA DE HISTÓRICO DE VIAGENS (INCORPORADA)
-@Composable
-fun CarameloTripHistoryView(onBackToSettings: () -> Unit) {
-    val historyItems = remember {
-        listOf(
-            TripHistoryItem("12 de Março, 14:30", "Localização atual", "Shopping Cidade Jardim", "Carlos Silva", "4.9 ★", "Caramelo Leve", "LGBTQIA+", "R$ 18,40"),
-            TripHistoryItem("10 de Março, 09:15", "Alameda Santos, 1420", "Av. Faria Lima, 3400", "Fernanda Lima", "5.0 ★", "Caramelo Plus", "Mulher", "R$ 24,90"),
-            TripHistoryItem("05 de Março, 20:00", "Parque Ibirapuera", "Rua Augusta, 500", "Lucas Almeida", "4.8 ★", "Caramelo Grupo", "Geral", "R$ 32,60"),
-            TripHistoryItem("28 de Fevereiro, 11:45", "Aeroporto de Congonhas", "Alameda Santos, 1420", "Rafael Costa", "4.9 ★", "Caramelo Leve", "Homem", "R$ 38,00")
-        )
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(20.dp)
-            .verticalScroll(rememberScrollState())
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            CarameloLogo()
-
-            OutlinedButton(
-                onClick = onBackToSettings,
-                shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-            ) {
-                Text(
-                    text = "✕ Voltar às Configurações",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(24.dp))
-
-        Text(
-            text = "— SEU HISTÓRICO",
-            fontSize = 11.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.primary,
-            letterSpacing = 1.sp
-        )
-
-        Text(
-            text = "Histórico de Viagens",
-            fontSize = 28.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onBackground,
-            fontFamily = FontFamily.Serif
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        historyItems.forEach { trip ->
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = trip.date,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = CarameloGreen.copy(alpha = 0.15f)
-                        ) {
-                            Text(
-                                text = "✓ Concluída",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = CarameloGreen,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                            )
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Text(
-                        text = "de: ${trip.origin}",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "para: ${trip.destination}",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-                    HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = "Motorista: ${trip.driverName} (${trip.driverRating})",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "${trip.category} • Motorista: ${trip.driverType}",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        Text(
-                            text = trip.price,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.primary
-                        )
-                    }
-                }
-            }
-        }
+        Spacer(modifier = Modifier.height(12.dp))
     }
 }
 

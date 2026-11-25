@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Caramelo · Perfil e segurança</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{margin:0}
+a{color:#B4531A}a:hover{color:#5A1E0E}
+</style>
+</helmet>
+<div style="position: relative; width: 390px; height: 844px; box-sizing: border-box; background: #F3F1ED; font-family: 'Plus Jakarta Sans', system-ui, sans-serif; color: #2E140A; overflow: hidden; padding: 24px 20px 0; display: flex; flex-direction: column; gap: 14px">
+
+  <section style="background: #FFFFFF; border-radius: 24px; padding: 18px; display: flex; align-items: center; gap: 14px">
+    <div style="width: 60px; height: 60px; border-radius: 50%; background: #F08A1C; color: #5C2009; font-size: 20px; font-weight: 800; display: flex; align-items: center; justify-content: center">MC</div>
+    <div style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 18px; font-weight: 700">Marina Costa</span><span style="font-size: 13px; color: #6E6762">4,92 de avaliação ★</span></div>
+    <button type="button" aria-label="Editar perfil" style="margin-left: auto; width: 44px; height: 44px; border-radius: 50%; border: 1.5px solid #E4DFD8; background: #FFFFFF; color: #2E140A; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>
+  </section>
+
+  <section style="background: #FFFFFF; border-radius: 24px; padding: 4px 16px; display: flex; flex-direction: column">
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #F0ECE6">
+      <span style="width: 40px; height: 40px; border-radius: 12px; background: #F3F1ED; display: flex; align-items: center; justify-content: center; flex: none"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2E140A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></span>
+      <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 700">Endereço</span><span style="font-size: 12px; color: #6E6762">Av. Paulista, 1000 · Bela Vista</span></span>
+      <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#8A827C" stroke-width="2" stroke-linecap="round" style="margin-left: auto"><path d="m9 18 6-6-6-6"/></svg>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0">
+      <span style="width: 40px; height: 40px; border-radius: 12px; background: #F3F1ED; display: flex; align-items: center; justify-content: center; flex: none"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2E140A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg></span>
+      <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 700">Motorista preferido</span><span style="font-size: 12px; color: #6E6762">Geral · fixo em todas as viagens</span></span>
+      <button type="button" role="switch" aria-checked="{{ fixedOn }}" aria-label="Manter preferência fixa" onClick="{{ toggleFixed }}" style="{{ fixedTrack }}"><span style="{{ fixedKnob }}"></span></button>
+    </div>
+  </section>
+
+  <p style="margin: 4px 0 0; font-size: 13px; font-weight: 700; color: #6E6762">Segurança</p>
+  <section style="background: #FFFFFF; border-radius: 24px; padding: 4px 16px; display: flex; flex-direction: column">
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #F0ECE6">
+      <span style="width: 40px; height: 40px; border-radius: 12px; background: #3A1A0F; display: flex; align-items: center; justify-content: center; flex: none"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="m4.9 4.9 14.2 14.2"/></svg></span>
+      <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 700">Motoristas bloqueados</span><span style="font-size: 12px; color: #6E6762">João Pedro, Marcos Oliveira</span></span>
+      <span style="margin-left: auto; min-width: 28px; height: 28px; border-radius: 999px; background: #FFE9D1; color: #5A1E0E; font-size: 13px; font-weight: 800; display: flex; align-items: center; justify-content: center">2</span>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid #F0ECE6">
+      <span style="width: 40px; height: 40px; border-radius: 12px; background: #F3F1ED; display: flex; align-items: center; justify-content: center; flex: none"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="#2E140A"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z"/></svg></span>
+      <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 700">Evitar nota abaixo de 4,5</span><span style="font-size: 12px; color: #6E6762">Regra automática</span></span>
+      <button type="button" role="switch" aria-checked="{{ ratingOn }}" aria-label="Evitar motoristas com nota abaixo de 4,5" onClick="{{ toggleRating }}" style="{{ ratingTrack }}"><span style="{{ ratingKnob }}"></span></button>
+    </div>
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0">
+      <span style="width: 40px; height: 40px; border-radius: 12px; background: #F3F1ED; display: flex; align-items: center; justify-content: center; flex: none"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2E140A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 6-8 12-8 12S4 16 4 10a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg></span>
+      <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 700">Compartilhar rota</span><span style="font-size: 12px; color: #6E6762">Em tempo real com contatos</span></span>
+      <button type="button" role="switch" aria-checked="{{ routeOn }}" aria-label="Compartilhar rota em tempo real" onClick="{{ toggleRoute }}" style="{{ routeTrack }}"><span style="{{ routeKnob }}"></span></button>
+    </div>
+  </section>
+
+  <section style="background: #FFFFFF; border-radius: 24px; padding: 4px 16px">
+    <div style="display: flex; align-items: center; gap: 12px; padding: 12px 0">
+      <span style="width: 40px; height: 40px; border-radius: 12px; background: #F3F1ED; display: flex; align-items: center; justify-content: center; flex: none"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2E140A" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"/></svg></span>
+      <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 15px; font-weight: 700">Modo noturno</span><span style="font-size: 12px; color: #6E6762">Tons escuros para a noite</span></span>
+      <button type="button" role="switch" aria-checked="{{ darkOn }}" aria-label="Modo noturno" onClick="{{ toggleDark }}" style="{{ darkTrack }}"><span style="{{ darkKnob }}"></span></button>
+    </div>
+  </section>
+
+  <a href="Verificacao.dc.html" style="border-radius: 24px; background: #B4531A; color: #FFFFFF; padding: 16px 18px; text-decoration: none; display: flex; align-items: center; gap: 12px">
+    <span style="display: flex; flex-direction: column; gap: 2px"><span style="font-size: 16px; font-weight: 800">Seja motorista Caramelo</span><span style="font-size: 13px; opacity: 0.9">CNH, verificação de antecedentes e veículo</span></span>
+    <span style="margin-left: auto; width: 40px; height: 40px; border-radius: 50%; background: #FFFFFF; color: #B4531A; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 5l7 7-7 7"/></svg></span>
+  </a>
+
+  <nav aria-label="Navegação principal" style="position: absolute; left: 50%; bottom: 20px; margin-left: -118px; width: 236px; height: 60px; box-sizing: border-box; display: flex; justify-content: space-between; padding: 6px; border-radius: 999px; background: #FFFFFF; box-shadow: 0 10px 30px rgba(43,27,23,0.16)">
+    <a href="Inicio.dc.html" aria-label="Início" style="width: 48px; height: 48px; border-radius: 50%; color: #6E6762; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5V20a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></a>
+    <a href="Historico.dc.html" aria-label="Viagens" style="width: 48px; height: 48px; border-radius: 50%; color: #6E6762; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg></a>
+    <a href="#" aria-label="Carteira" style="width: 48px; height: 48px; border-radius: 50%; color: #6E6762; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="5" width="20" height="14" rx="2"/><path d="M2 10h20"/></svg></a>
+    <a href="Perfil.dc.html" aria-label="Perfil" aria-current="page" style="width: 48px; height: 48px; border-radius: 50%; background: #B4531A; color: #FFFFFF; display: flex; align-items: center; justify-content: center"><svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="5"/><path d="M20 21a8 8 0 0 0-16 0"/></svg></a>
+  </nav>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":390,"height":844}}'>
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { fixed: true, rating: true, route: false, dark: false };
+  }
+  sw(on) {
+    return {
+      track: 'margin-left: auto; flex: none; width: 52px; height: 32px; border-radius: 999px; border: 0; padding: 3px; display: flex; ' + (on ? 'background: #B4531A; justify-content: flex-end' : 'background: #E4DFD8; justify-content: flex-start'),
+      knob: 'width: 26px; height: 26px; border-radius: 50%; background: #FFFFFF; box-shadow: 0 1px 3px rgba(0,0,0,0.2)',
+    };
+  }
+  renderVals() {
+    const s = this.state;
+    const f = this.sw(s.fixed), r = this.sw(s.rating), ro = this.sw(s.route), d = this.sw(s.dark);
+    return {
+      fixedOn: s.fixed, fixedTrack: f.track, fixedKnob: f.knob, toggleFixed: () => this.setState({ fixed: !s.fixed }),
+      ratingOn: s.rating, ratingTrack: r.track, ratingKnob: r.knob, toggleRating: () => this.setState({ rating: !s.rating }),
+      routeOn: s.route, routeTrack: ro.track, routeKnob: ro.knob, toggleRoute: () => this.setState({ route: !s.route }),
+      darkOn: s.dark, darkTrack: d.track, darkKnob: d.knob, toggleDark: () => this.setState({ dark: !s.dark }),
+    };
+  }
+}
+</script>
+</body>
+</html>

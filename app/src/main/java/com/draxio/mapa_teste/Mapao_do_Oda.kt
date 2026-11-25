@@ -5,35 +5,67 @@ import android.annotation.SuppressLint
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.widget.Toast
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.KeyboardArrowRight
+import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.ChatBubble
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.CreditCard
+import androidx.compose.material.icons.rounded.Map as MapIcon
+import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.material.icons.rounded.MyLocation
+import androidx.compose.material.icons.rounded.Person
+import androidx.compose.material.icons.rounded.Phone
+import androidx.compose.material.icons.rounded.Place
+import androidx.compose.material.icons.rounded.Remove
+import androidx.compose.material.icons.rounded.Schedule
+import androidx.compose.material.icons.rounded.Search
+import androidx.compose.material.icons.rounded.Shield
+import androidx.compose.material.icons.rounded.VerifiedUser
 import androidx.compose.material3.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalInspectionMode
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
+import androidx.core.net.toUri
 import androidx.fragment.app.FragmentActivity
+import com.draxio.mapa_teste.ui.components.*
 import com.draxio.mapa_teste.ui.theme.*
 import com.google.android.gms.location.*
 import com.google.android.gms.maps.CameraUpdateFactory
@@ -41,7 +73,6 @@ import com.google.android.gms.maps.GoogleMap
 import com.google.android.gms.maps.OnMapReadyCallback
 import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.LatLng
-import kotlinx.coroutines.delay
 
 class Mapao_do_Oda : FragmentActivity(), OnMapReadyCallback {
 
@@ -51,10 +82,28 @@ class Mapao_do_Oda : FragmentActivity(), OnMapReadyCallback {
     private var isFirstZoom = true
 
     private val locationPermissionRequestCode = 1
+    // A permissao e pedida uma unica vez por criacao da Activity
+    private var permissionRequested = false
+    // Permissao negada: mapa centrado em Sao Paulo e partida sem "Localizacao atual"
+    private var locationDenied by mutableStateOf(false)
+
+    private fun hasLocationPermission(): Boolean =
+        ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+    private fun centerOnSaoPaulo() {
+        mMap?.moveCamera(CameraUpdateFactory.newLatLngZoom(LatLng(-23.5614, -46.6559), 13f))
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean("location_denied", locationDenied)
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        locationDenied = savedInstanceState?.getBoolean("location_denied", false) ?: false
 
         fusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
 
@@ -87,7 +136,8 @@ class Mapao_do_Oda : FragmentActivity(), OnMapReadyCallback {
                         },
                         onToast = { message ->
                             Toast.makeText(this@Mapao_do_Oda, message, Toast.LENGTH_SHORT).show()
-                        }
+                        },
+                        locationDenied = locationDenied
                     )
                 }
             }
@@ -105,13 +155,17 @@ class Mapao_do_Oda : FragmentActivity(), OnMapReadyCallback {
             .setMinUpdateIntervalMillis(2000)
             .build()
 
+        // Evita registrar o mesmo callback duas vezes (onResume + enableMyLocation)
+        fusedLocationClient.removeLocationUpdates(locationCallback)
         fusedLocationClient.requestLocationUpdates(locationRequest, locationCallback, mainLooper)
     }
 
+    @SuppressLint("MissingPermission")
     override fun onResume() {
         super.onResume()
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
-            == PackageManager.PERMISSION_GRANTED) {
+        if (hasLocationPermission()) {
+            locationDenied = false
+            mMap?.isMyLocationEnabled = true
             startLocationUpdates()
         }
     }
@@ -123,13 +177,20 @@ class Mapao_do_Oda : FragmentActivity(), OnMapReadyCallback {
 
     @SuppressLint("MissingPermission")
     private fun enableMyLocation() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+        if (hasLocationPermission()) {
+            locationDenied = false
             mMap?.isMyLocationEnabled = true
             startLocationUpdates()
             return
         }
 
+        if (locationDenied) {
+            // Ja negada: nao pede de novo; mapa em Sao Paulo
+            centerOnSaoPaulo()
+            return
+        }
+        if (permissionRequested) return
+        permissionRequested = true
         ActivityCompat.requestPermissions(
             this,
             arrayOf(Manifest.permission.ACCESS_FINE_LOCATION, Manifest.permission.ACCESS_COARSE_LOCATION),
@@ -140,42 +201,41 @@ class Mapao_do_Oda : FragmentActivity(), OnMapReadyCallback {
     override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<String>, grantResults: IntArray) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
         if (requestCode == locationPermissionRequestCode) {
-            if (grantResults.isNotEmpty() && (grantResults[0] == PackageManager.PERMISSION_GRANTED || grantResults[1] == PackageManager.PERMISSION_GRANTED)) {
+            if (grantResults.any { it == PackageManager.PERMISSION_GRANTED }) { // any já cobre array vazio
                 enableMyLocation()
             } else {
+                locationDenied = true
+                centerOnSaoPaulo()
                 Toast.makeText(this, "Permissão de localização negada", Toast.LENGTH_SHORT).show()
             }
         }
     }
 }
 
-// Logo "C caramelo"
+// Logo oficial em versao de cabecalho: pino com o caramelo ao volante + nome.
+// Usado em todas as telas; o logo completo (com o nome desenhado) fica no Login.
 @Composable
 fun CarameloLogo(modifier: Modifier = Modifier) {
+    val isDark = MaterialTheme.colorScheme.background == CarameloDarkBackground
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier
     ) {
-        Box(
+        Image(
+            painter = painterResource(id = R.drawable.caramelo_marca),
+            contentDescription = null,
             modifier = Modifier
-                .size(34.dp)
-                .background(CarameloYellow, shape = CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = "C",
-                color = Color.White,
-                fontWeight = FontWeight.Bold,
-                fontSize = 20.sp
-            )
-        }
+                .size(36.dp)
+                .clip(RoundedCornerShape(10.dp))
+        )
         Text(
-            text = "caramelo",
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold,
+            text = "Caramelo",
+            color = if (isDark) CarameloOrange else CarameloRustDark,
+            fontWeight = FontWeight.ExtraBold,
             fontSize = 22.sp,
-            fontFamily = FontFamily.Serif
+            fontFamily = CarameloBrandFont,
+            letterSpacing = (-0.3).sp
         )
     }
 }
@@ -183,98 +243,167 @@ fun CarameloLogo(modifier: Modifier = Modifier) {
 @Composable
 fun MainAppContent(
     onMapReady: (GoogleMap) -> Unit = {},
-    onToast: (String) -> Unit = {}
+    onToast: (String) -> Unit = {},
+    locationDenied: Boolean = false
 ) {
-    var isDrawerOpen by remember { mutableStateOf(false) }
-    var showPresentation by remember { mutableStateOf(false) }
-    var showTripHistory by remember { mutableStateOf(false) }
-    var showSettings by remember { mutableStateOf(false) }
+    var isDrawerOpen by rememberSaveable { mutableStateOf(false) }
+    var showPresentation by rememberSaveable { mutableStateOf(false) }
+    var showTripHistory by rememberSaveable { mutableStateOf(false) }
+    var showSettings by rememberSaveable { mutableStateOf(false) }
+    var isRideActive by rememberSaveable { mutableStateOf(false) }
+    var showWallet by rememberSaveable { mutableStateOf(false) }
+    var showHelp by rememberSaveable { mutableStateOf(false) }
 
-    when {
-        showPresentation -> {
-            CarameloPresentationScreen(
-                onClose = { showPresentation = false }
+    // Voltar do sistema: fecha a tela sobreposta de cima ou o drawer
+    BackHandler(enabled = isDrawerOpen || showPresentation || showTripHistory || showSettings || showWallet || showHelp) {
+        when {
+            showWallet -> showWallet = false
+            showHelp -> showHelp = false
+            showPresentation -> showPresentation = false
+            showTripHistory -> showTripHistory = false
+            showSettings -> showSettings = false
+            isDrawerOpen -> isDrawerOpen = false
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        // Mapa base (sempre composto: o fragmento nao e recriado ao abrir outras telas)
+        MapScreen(onMapReady = onMapReady)
+
+        // Topo do mapa: menu redondo a esquerda e selo "12 motoristas por perto" a direita
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .align(Alignment.TopCenter),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CarameloCircleButton(
+                icon = Icons.Rounded.Menu,
+                contentDescription = "Abrir menu",
+                onClick = { isDrawerOpen = true }
+            )
+            CarameloStatusPill(
+                text = "12 motoristas por perto",
+                dotColor = CarameloGreen,
+                dark = true
             )
         }
-        showTripHistory -> {
-            CarameloTripHistoryScreen(
-                onClose = { showTripHistory = false }
+
+        // Painel Principal de solicitação de viagem (RideHailingOverlay)
+        RideHailingOverlay(
+            onOpenDrawer = { isDrawerOpen = true },
+            onRideRequested = { dest, cat, driverPref ->
+                onToast("Buscando $cat ($driverPref) para $dest...")
+            },
+            bottomContentPadding = CarameloNavBarClearance,
+            onStatusChange = { status -> isRideActive = status != RideStatus.IDLE },
+            onOpenWallet = { showWallet = true },
+            paymentRefreshKey = showWallet,
+            backEnabled = !isDrawerOpen && !showWallet && !showHelp &&
+                !showPresentation && !showTripHistory && !showSettings,
+            locationDenied = locationDenied
+        )
+
+        // Menu inferior flutuante: so aparece com o painel ocioso (some durante a busca/corrida e com o menu lateral aberto)
+        if (!isRideActive && !isDrawerOpen) {
+            CarameloFloatingNavBar(
+                selected = CarameloNavItem.Inicio,
+                onSelect = { item ->
+                    when (item) {
+                        CarameloNavItem.Inicio -> { }
+                        CarameloNavItem.Viagens -> { showTripHistory = true }
+                        CarameloNavItem.Perfil -> { showSettings = true }
+                        CarameloNavItem.Carteira -> { showWallet = true }
+                    }
+                },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .navigationBarsPadding()
+                    .padding(bottom = 16.dp)
             )
         }
-        showSettings -> {
-            SettingsScreen(
-                onClose = { showSettings = false },
+
+        // Drawer lateral / Menu do Usuário
+        AnimatedVisibility(
+            visible = isDrawerOpen,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
+            CarameloDrawerContent(
+                onClose = { isDrawerOpen = false },
+                onOpenTripHistory = {
+                    isDrawerOpen = false
+                    showTripHistory = true
+                },
+                onOpenSettings = {
+                    isDrawerOpen = false
+                    showSettings = true
+                },
+                onOpenPresentation = {
+                    isDrawerOpen = false
+                    showPresentation = true
+                },
+                onToast = onToast,
+                onOpenWallet = {
+                    isDrawerOpen = false
+                    showWallet = true
+                },
+                onOpenHelp = {
+                    isDrawerOpen = false
+                    showHelp = true
+                }
+            )
+        }
+
+        // Telas sobrepostas (mapa e painel da corrida continuam vivos por baixo)
+        if (showWallet) {
+            WalletScreen(
+                onClose = { showWallet = false },
                 onToast = onToast
             )
         }
-        else -> {
-            Box(modifier = Modifier.fillMaxSize()) {
-                // Mapa base
-                MapScreen(onMapReady = onMapReady)
-
-                // Badge "12 motoristas por perto" no topo direito do mapa
-                Surface(
-                    modifier = Modifier
-                        .padding(top = 48.dp, end = 16.dp)
-                        .align(Alignment.TopEnd),
-                    shape = RoundedCornerShape(20.dp),
-                    color = MaterialTheme.colorScheme.surface,
-                    shadowElevation = 4.dp
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .background(CarameloGreen, CircleShape)
-                        )
-                        Text(
-                            text = "12 motoristas por perto",
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                }
-
-                // Painel Principal de solicitação de viagem (RideHailingOverlay)
-                RideHailingOverlay(
-                    onOpenDrawer = { isDrawerOpen = true },
-                    onRideRequested = { dest, cat, driverPref ->
-                        onToast("Buscando $cat ($driverPref) para $dest...")
-                    }
+        if (showHelp) {
+            HelpScreen(onClose = { showHelp = false })
+        }
+        if (showPresentation) {
+            FullScreenOverlay {
+                CarameloPresentationScreen(onClose = { showPresentation = false })
+            }
+        }
+        if (showTripHistory) {
+            FullScreenOverlay {
+                CarameloTripHistoryScreen(onClose = { showTripHistory = false })
+            }
+        }
+        if (showSettings) {
+            FullScreenOverlay {
+                SettingsScreen(
+                    onClose = { showSettings = false },
+                    onToast = onToast
                 )
-
-                // Drawer lateral / Menu do Usuário
-                AnimatedVisibility(
-                    visible = isDrawerOpen,
-                    enter = fadeIn(),
-                    exit = fadeOut()
-                ) {
-                    CarameloDrawerContent(
-                        onClose = { isDrawerOpen = false },
-                        onOpenTripHistory = {
-                            isDrawerOpen = false
-                            showTripHistory = true
-                        },
-                        onOpenSettings = {
-                            isDrawerOpen = false
-                            showSettings = true
-                        },
-                        onOpenPresentation = {
-                            isDrawerOpen = false
-                            showPresentation = true
-                        },
-                        onToast = onToast
-                    )
-                }
             }
         }
     }
 }
+
+// Tela cheia opaca por cima do mapa e do painel; bloqueia toques para o que esta por baixo
+@Composable
+private fun FullScreenOverlay(content: @Composable () -> Unit) {
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+            .pointerInput(Unit) {}
+    ) {
+        content()
+    }
+}
+
+private const val MAP_FRAGMENT_TAG = "caramelo_map_fragment"
+private const val MAP_CONTAINER_ID = 0x00CA7E10
 
 @Composable
 fun MapScreen(onMapReady: (GoogleMap) -> Unit) {
@@ -286,13 +415,17 @@ fun MapScreen(onMapReady: (GoogleMap) -> Unit) {
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = "🚖", fontSize = 48.sp)
+                Icon(
+                    imageVector = Icons.Rounded.MapIcon,
+                    contentDescription = null,
+                    modifier = Modifier.size(48.dp),
+                    tint = MaterialTheme.colorScheme.primary
+                )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
                     text = "Mapa do Caramelo",
                     color = MaterialTheme.colorScheme.primary,
-                    fontSize = 18.sp,
-                    fontWeight = FontWeight.Bold
+                    style = MaterialTheme.typography.titleMedium
                 )
             }
         }
@@ -302,12 +435,21 @@ fun MapScreen(onMapReady: (GoogleMap) -> Unit) {
             factory = { context ->
                 val fragmentActivity = context as FragmentActivity
                 androidx.fragment.app.FragmentContainerView(context).apply {
-                    id = android.view.View.generateViewId()
+                    // Id fixo: o fragmento restaurado depois da rotacao encontra o mesmo container
+                    id = MAP_CONTAINER_ID
                     tag = "map_fragment_container"
-                    val mapFragment = SupportMapFragment.newInstance()
-                    fragmentActivity.supportFragmentManager.beginTransaction()
-                        .replace(this.id, mapFragment)
-                        .commit()
+                    val fm = fragmentActivity.supportFragmentManager
+                    val existing = fm.findFragmentByTag(MAP_FRAGMENT_TAG) as? SupportMapFragment
+                    val mapFragment = if (existing != null && existing.view != null) {
+                        existing
+                    } else {
+                        // Sem instancia utilizavel: remove a antiga (se houver) e cria uma unica com a tag fixa
+                        val tx = fm.beginTransaction()
+                        if (existing != null) tx.remove(existing)
+                        val created = SupportMapFragment.newInstance()
+                        tx.add(this.id, created, MAP_FRAGMENT_TAG).commit()
+                        created
+                    }
                     mapFragment.getMapAsync { googleMap ->
                         onMapReady(googleMap)
                     }
@@ -317,48 +459,47 @@ fun MapScreen(onMapReady: (GoogleMap) -> Unit) {
         )
     }
 }
-
-enum class RideStatus {
-    IDLE,
-    SEARCHING_DRIVER,
-    DRIVER_ACCEPTED
-}
-
-data class RideCategory(
-    val name: String,
-    val price: String,
-    val timeAndType: String,
-    val capacity: Int,
-    val icon: String
-)
-
-data class DriverPreferenceOption(
-    val id: String,
-    val title: String,
-    val icon: String
-)
-
-data class DriverOffer(
-    val id: String,
-    val driverName: String,
-    val rating: String,
-    val vehicle: String,
-    val plate: String,
-    val offeredPrice: String,
-    val eta: String,
-    val driverTypeTag: String,
-    val icon: String
-)
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RideHailingOverlay(
     onOpenDrawer: () -> Unit,
-    onRideRequested: (String, String, String) -> Unit
+    onRideRequested: (String, String, String) -> Unit,
+    bottomContentPadding: Dp = 0.dp,
+    onStatusChange: (RideStatus) -> Unit = {},
+    onOpenWallet: () -> Unit = {},
+    paymentRefreshKey: Any = Unit,
+    backEnabled: Boolean = true,
+    locationDenied: Boolean = false
 ) {
-    var rideStatus by remember { mutableStateOf(RideStatus.IDLE) }
-    var destination by remember { mutableStateOf("Shopping Cidade Jardim") }
-    var origin by remember { mutableStateOf("Localização atual") }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var rideStatus by rememberSaveable { mutableStateOf(RideStatus.IDLE) }
+    var boardingPin by rememberSaveable { mutableStateOf("") }
+    var showCancelDialog by rememberSaveable { mutableStateOf(false) }
+    var showCallDialog by rememberSaveable { mutableStateOf(false) }
+    var showChatDialog by rememberSaveable { mutableStateOf(false) }
+    var showDestinationPicker by rememberSaveable { mutableStateOf(false) }
+    val chatMessages = remember { mutableStateListOf<ChatLine>() }
+    val chatScope = rememberCoroutineScope()
+    // Forma de pagamento e cupom: relidos quando a Carteira fecha
+    val paymentMethod = remember(paymentRefreshKey) { CarameloRepository.getPaymentMethod(context) }
+    val activeCoupon = remember(paymentRefreshKey) { CarameloRepository.getActiveCoupon(context) }
+    // Nome e iniciais do usuario
+    val userName = remember { CarameloRepository.getUserName(context) }
+    val userInitials = remember(userName) { userInitialsOf(userName) }
+    // Passo do botao +/- (ex.: "R$ 2,00" -> 2.0f), com fallback 2.0f
+    val priceStep = remember {
+        CarameloRepository.getPriceIncrementStep(context)
+            .filter { it.isDigit() || it == ',' || it == '.' }
+            .replace(',', '.')
+            .toFloatOrNull()?.takeIf { it > 0f } ?: 2.0f
+    }
+    val priceMin = 10.0f
+    val priceMax = 80.0f
+    // Avisa quem esta por fora (ex.: esconder o menu flutuante durante a busca/corrida)
+    val latestOnStatusChange by rememberUpdatedState(onStatusChange)
+    LaunchedEffect(rideStatus) { latestOnStatusChange(rideStatus) }
+    var destination by rememberSaveable { mutableStateOf("Shopping Cidade Jardim") }
+    val origin = if (locationDenied) "Defina o ponto de partida" else "Localização atual"
 
     // Tipo de Motorista Escolhido
     val driverPreferences = remember {
@@ -369,21 +510,84 @@ fun RideHailingOverlay(
             DriverPreferenceOption("Homem", "Homem", "👨")
         )
     }
-    var selectedDriverPrefIndex by remember { mutableIntStateOf(0) }
-
-    // Oferta de Preço com + e - e Slider (Deslizar)
-    var offeredPriceAmount by remember { mutableFloatStateOf(18.40f) }
-
-    // Stream de Propostas dos Motoristas
-    val initialDriverOffers = remember {
-        listOf(
-            DriverOffer("1", "Carlos Silva", "4.9 ★", "Honda Civic", "ABC-1234", "R$ 18,40", "2 min", "🏳️‍🌈 LGBTQIA+", "🚖"),
-            DriverOffer("2", "Fernanda Lima", "5.0 ★", "Toyota Corolla", "XYZ-5678", "R$ 19,00", "3 min", "👩 Mulher", "🚘"),
-            DriverOffer("3", "Lucas Almeida", "4.8 ★", "Hyundai HB20", "KML-9012", "R$ 17,50", "1 min", "👤 Geral", "🚕")
+    // Comeca na preferencia salva so se "Fixar" estiver ligado; senao "Geral"
+    var selectedDriverPrefIndex by rememberSaveable {
+        mutableIntStateOf(
+            if (CarameloRepository.isFixedPreferenceEnabled(context)) {
+                val savedId = CarameloRepository.getDefaultDriverPreference(context)
+                driverPreferences.indexOfFirst { it.id == savedId }.coerceAtLeast(0)
+            } else 0
         )
     }
-    val currentOffers = remember { mutableStateListOf<DriverOffer>().apply { addAll(initialDriverOffers) } }
-    var acceptedOffer by remember { mutableStateOf<DriverOffer?>(null) }
+    var isFixedDriverPreference by rememberSaveable {
+        mutableStateOf(CarameloRepository.isFixedPreferenceEnabled(context))
+    }
+
+    // Oferta de Preço com + e - e Slider (Deslizar)
+    var offeredPriceAmount by rememberSaveable { mutableFloatStateOf(18.40f) }
+
+    // Stream de Propostas dos Motoristas: precos derivados do valor oferecido no pedido
+    // (guardado com rememberSaveable para a lista ser estavel e sobreviver a rotacao)
+    var requestedPrice by rememberSaveable { mutableFloatStateOf(0f) }
+    val initialDriverOffers = remember(requestedPrice) {
+        buildDriverOffers(if (requestedPrice > 0f) requestedPrice else offeredPriceAmount)
+    }
+    val currentOffers = remember(requestedPrice) { mutableStateListOf<DriverOffer>().apply { addAll(initialDriverOffers) } }
+    // Motorista aceito: so o id sobrevive a rotacao; o DriverOffer e derivado da lista
+    var acceptedOfferId by rememberSaveable { mutableStateOf<String?>(null) }
+    val acceptedOffer = acceptedOfferId?.let { id -> initialDriverOffers.firstOrNull { it.id == id } }
+    // Motorista cuja ficha de segurança está aberta (null = fechada)
+    var safetyOffer by remember { mutableStateOf<DriverOffer?>(null) }
+    var safetyDuringTrip by remember { mutableStateOf(false) }
+    var chatJob by remember { mutableStateOf<Job?>(null) }
+    // Bloqueados: lista lida quando a busca comeca
+    val blockedNames = remember(rideStatus == RideStatus.SEARCHING_DRIVER) {
+        if (rideStatus == RideStatus.SEARCHING_DRIVER) {
+            CarameloRepository.getBlockedDrivers(context).map { it.name.trim().lowercase() }.toSet()
+        } else emptySet()
+    }
+    val activeDriver = acceptedOffer ?: initialDriverOffers.first()
+    val openSafety = {
+        safetyDuringTrip = true
+        safetyOffer = activeDriver
+    }
+    val openRoute = {
+        val geo = android.content.Intent(
+            android.content.Intent.ACTION_VIEW,
+            "geo:0,0?q=${android.net.Uri.encode(destination)}".toUri()
+        )
+        try {
+            context.startActivity(geo)
+        } catch (_: android.content.ActivityNotFoundException) {
+            Toast.makeText(context, "Nenhum app de mapas encontrado", Toast.LENGTH_SHORT).show()
+        }
+    }
+    val finishRide = {
+        rideStatus = RideStatus.IDLE
+        acceptedOfferId = null
+        boardingPin = ""
+        chatJob?.cancel()
+        chatJob = null
+        chatMessages.clear()
+        showCancelDialog = false
+        showChatDialog = false
+        showCallDialog = false
+        safetyOffer = null
+    }
+    // Voltar do sistema: busca volta a IDLE; a caminho/em viagem pede o motivo; recibo exige "Concluir"
+    BackHandler(enabled = backEnabled && rideStatus != RideStatus.IDLE) {
+        when (rideStatus) {
+            RideStatus.SEARCHING_DRIVER -> finishRide()
+            RideStatus.DRIVER_ARRIVING, RideStatus.IN_TRIP -> showCancelDialog = true
+            else -> {}
+        }
+    }
+    // Corrida em andamento sem motorista valido (ex.: estado restaurado): volta a IDLE
+    LaunchedEffect(rideStatus, acceptedOffer) {
+        if (rideStatus != RideStatus.IDLE && rideStatus != RideStatus.SEARCHING_DRIVER && acceptedOffer == null) {
+            finishRide()
+        }
+    }
 
     val categories = remember {
         listOf(
@@ -394,684 +598,177 @@ fun RideHailingOverlay(
             RideCategory("Frete", "R$ 45,00", "8 min • Transporte de Cargas", 2, "🚚")
         )
     }
-    var selectedCategoryIndex by remember { mutableIntStateOf(0) }
+    var selectedCategoryIndex by rememberSaveable { mutableIntStateOf(0) }
 
     Box(modifier = Modifier.fillMaxSize()) {
-        // Overlay de busca (Encontrando seu motorista e Stream de Propostas) - Modal Dialog
-        if (rideStatus == RideStatus.SEARCHING_DRIVER || rideStatus == RideStatus.DRIVER_ACCEPTED) {
-            Box(
+        // Bottom Sheet / Painel principal (branco, cantos de 32 dp no topo, alca de arrasto)
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.82f)
+                .align(Alignment.BottomCenter),
+            shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+            color = MaterialTheme.colorScheme.surface,
+            shadowElevation = 16.dp
+        ) {
+            Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.5f))
-                    .clickable { },
-                contentAlignment = Alignment.Center
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 20.dp, end = 20.dp, top = 10.dp)
+                    .navigationBarsPadding()
+                    .padding(bottom = 20.dp + bottomContentPadding),
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                Card(
+                // Alca de arrasto
+                Box(
                     modifier = Modifier
-                        .fillMaxWidth(0.92f)
-                        .padding(16.dp),
-                    shape = RoundedCornerShape(24.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 12.dp)
+                        .align(Alignment.CenterHorizontally)
+                        .size(width = 40.dp, height = 5.dp)
+                        .background(MaterialTheme.colorScheme.outline, CircleShape)
+                )
+
+                // Cabecalho do painel: logo e avatar (abre o menu lateral)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column(
+                    CarameloLogo()
+                    Surface(
+                        onClick = onOpenDrawer,
+                        shape = CircleShape,
+                        color = carameloDarkFill(),
+                        contentColor = Color.White,
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
+                            .size(44.dp)
+                            .semantics { contentDescription = "Abrir menu do perfil" }
                     ) {
-                        // Botão de fechar 'X'
-                        Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.TopEnd) {
-                            IconButton(
-                                onClick = { rideStatus = RideStatus.IDLE },
-                                modifier = Modifier.size(32.dp)
-                            ) {
-                                Text(text = "✕", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
-                            }
-                        }
-
-                        if (rideStatus == RideStatus.SEARCHING_DRIVER) {
-                            Text(
-                                text = "PROPOSTAS DOS MOTORISTAS (${currentOffers.size})",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                letterSpacing = 1.sp
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "Motoristas Aceitando Viagens",
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontFamily = FontFamily.Serif
-                            )
-                            Text(
-                                text = "Toque na proposta para remover/recusar ou clique em Aceitar",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-
-                            Spacer(modifier = Modifier.height(12.dp))
-
-                            if (currentOffers.isEmpty()) {
-                                Surface(
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant,
-                                    modifier = Modifier.fillMaxWidth().padding(8.dp)
-                                ) {
-                                    Column(
-                                        modifier = Modifier.padding(16.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Text(text = "Buscando novas propostas...", fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Button(
-                                            onClick = { currentOffers.addAll(initialDriverOffers) },
-                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                        ) {
-                                            Text("Restaurar Propostas")
-                                        }
-                                    }
-                                }
-                            } else {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .heightIn(max = 280.dp)
-                                        .verticalScroll(rememberScrollState()),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp)
-                                ) {
-                                    currentOffers.toList().forEach { offer ->
-                                        Card(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .clickable {
-                                                    // Removível ao toque direto no card
-                                                    currentOffers.remove(offer)
-                                                },
-                                            shape = RoundedCornerShape(14.dp),
-                                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                                        ) {
-                                            Column(modifier = Modifier.padding(12.dp)) {
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Row(
-                                                        verticalAlignment = Alignment.CenterVertically,
-                                                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                                                    ) {
-                                                        Text(text = offer.icon, fontSize = 22.sp)
-                                                        Column {
-                                                            Text(
-                                                                text = offer.driverName,
-                                                                fontSize = 14.sp,
-                                                                fontWeight = FontWeight.Bold,
-                                                                color = MaterialTheme.colorScheme.onSurface
-                                                            )
-                                                            Text(
-                                                                text = "${offer.vehicle} • ${offer.plate} • ${offer.rating}",
-                                                                fontSize = 11.sp,
-                                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                                            )
-                                                        }
-                                                    }
-
-                                                    Text(
-                                                        text = offer.offeredPrice,
-                                                        fontSize = 16.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        color = MaterialTheme.colorScheme.primary
-                                                    )
-                                                }
-
-                                                Spacer(modifier = Modifier.height(8.dp))
-
-                                                Row(
-                                                    modifier = Modifier.fillMaxWidth(),
-                                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                                    verticalAlignment = Alignment.CenterVertically
-                                                ) {
-                                                    Surface(
-                                                        shape = RoundedCornerShape(8.dp),
-                                                        color = MaterialTheme.colorScheme.surface
-                                                    ) {
-                                                        Text(
-                                                            text = "${offer.driverTypeTag} • ${offer.eta}",
-                                                            fontSize = 11.sp,
-                                                            fontWeight = FontWeight.SemiBold,
-                                                            color = MaterialTheme.colorScheme.primary,
-                                                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
-                                                        )
-                                                    }
-
-                                                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                                                        OutlinedButton(
-                                                            onClick = { currentOffers.remove(offer) },
-                                                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
-                                                            shape = RoundedCornerShape(8.dp)
-                                                        ) {
-                                                            Text("Recusar ✕", fontSize = 11.sp, color = MaterialTheme.colorScheme.primary)
-                                                        }
-
-                                                        val contextLocal = androidx.compose.ui.platform.LocalContext.current
-                                                        Button(
-                                                            onClick = {
-                                                                acceptedOffer = offer
-                                                                rideStatus = RideStatus.DRIVER_ACCEPTED
-
-                                                                // Salvar a nova corrida aceita no histórico local persistente
-                                                                val newTrip = TripHistoryItem(
-                                                                    date = "Hoje, agora",
-                                                                    origin = origin,
-                                                                    destination = destination,
-                                                                    driverName = offer.driverName,
-                                                                    driverRating = offer.rating,
-                                                                    category = categories[selectedCategoryIndex].name,
-                                                                    driverType = offer.driverTypeTag,
-                                                                    price = offer.offeredPrice
-                                                                )
-                                                                val currentHistory = CarameloRepository.getTripHistory(contextLocal).toMutableList()
-                                                                currentHistory.add(0, newTrip)
-                                                                CarameloRepository.saveTripHistory(contextLocal, currentHistory)
-                                                            },
-                                                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp),
-                                                            shape = RoundedCornerShape(8.dp),
-                                                            colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                                                        ) {
-                                                            Text("Aceitar", fontSize = 11.sp, color = Color.White, fontWeight = FontWeight.Bold)
-                                                        }
-                                                    }
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(14.dp))
-
-                            TextButton(
-                                onClick = { rideStatus = RideStatus.IDLE },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = "Cancelar busca",
-                                    color = MaterialTheme.colorScheme.primary,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 15.sp
-                                )
-                            }
-                        } else {
-                            val activeDriver = acceptedOffer ?: currentOffers.firstOrNull()
-                            Text(
-                                text = "MOTORISTA ACEITO",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = CarameloGreen,
-                                letterSpacing = 1.sp
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = activeDriver?.driverName ?: "Carlos Silva",
-                                fontSize = 22.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontFamily = FontFamily.Serif
-                            )
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "${activeDriver?.vehicle ?: "Honda Civic"} • Placa: ${activeDriver?.plate ?: "ABC-1234"} • ${activeDriver?.rating ?: "4.9 ★"}",
-                                fontSize = 13.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                            Spacer(modifier = Modifier.height(20.dp))
-                            Button(
-                                onClick = { rideStatus = RideStatus.IDLE },
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .height(50.dp),
-                                shape = RoundedCornerShape(16.dp),
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                            ) {
-                                Text(
-                                    text = "Concluir Corrida",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
+                        Box(contentAlignment = Alignment.Center) {
+                            Text(text = userInitials, style = MaterialTheme.typography.labelLarge)
                         }
                     }
                 }
-            }
-        }
 
-        // Bottom Sheet / Card da Interface Principal
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.BottomCenter
-        ) {
-            Surface(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.82f),
-                shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
-                color = MaterialTheme.colorScheme.surface,
-                shadowElevation = 16.dp
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
-                        .padding(20.dp)
+                CarameloScreenTitle(title = "Para onde vamos?", overline = "Sua cidade, seu caminho")
+
+                // Campo de partida e destino ("Buscar destino")
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(20.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant
                 ) {
-                    // Top Bar Interna do Painel: Menu, Logo, Pitch, MC Avatar
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(bottom = 14.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Surface(
-                            onClick = onOpenDrawer,
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant,
-                            modifier = Modifier.size(42.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center) {
-                                Text(text = "☰", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                            }
-                        }
-
-                        CarameloLogo()
-
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Surface(
-                                shape = RoundedCornerShape(16.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier.height(34.dp)
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(horizontal = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                                ) {
-                                    Text(text = "📊", fontSize = 12.sp)
-                                    Text(
-                                        text = "Pitch",
-                                        fontSize = 12.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .size(36.dp)
-                                    .background(CarameloRustDark, CircleShape)
-                                    .clickable { onOpenDrawer() },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(
-                                    text = "MC",
-                                    color = Color.White,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 13.sp
-                                )
-                            }
-                        }
-                    }
-
-                    // Seção "— SUA CIDADE, SEU CAMINHO"
-                    Text(
-                        text = "— SUA CIDADE, SEU CAMINHO",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.sp
-                    )
-
-                    Text(
-                        text = "Para onde vamos?",
-                        fontSize = 26.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontFamily = FontFamily.Serif,
-                        modifier = Modifier.padding(vertical = 2.dp)
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Card de Destino / Partida
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                    ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
-                            // Partida
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(8.dp)
-                                        .background(MaterialTheme.colorScheme.primary, CircleShape)
-                                )
-                                Spacer(modifier = Modifier.width(10.dp))
-                                Column {
-                                    Text(
-                                        text = "PARTIDA",
-                                        fontSize = 10.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    Text(
-                                        text = origin,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-
-                            HorizontalDivider(
-                                modifier = Modifier.padding(vertical = 8.dp, horizontal = 18.dp),
-                                color = MaterialTheme.colorScheme.outline
-                            )
-
-                            // Destino
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(8.dp)
-                                            .background(CarameloYellow, CircleShape)
-                                    )
-                                    Spacer(modifier = Modifier.width(10.dp))
-                                    Column {
-                                        Text(
-                                            text = "DESTINO",
-                                            fontSize = 10.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                        Text(
-                                            text = destination,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                    }
-                                }
-
-                                Surface(
-                                    shape = RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant,
-                                    modifier = Modifier.size(32.dp)
-                                ) {
-                                    Box(contentAlignment = Alignment.Center) {
-                                        Text(text = "+", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // SEÇÃO DE SELEÇÃO DE TIPO DE MOTORISTA (Geral, LGBTQIA+, Mulher, Homem)
-                    Text(
-                        text = "TIPO DE MOTORISTA PREFERIDO",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        letterSpacing = 1.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        driverPreferences.forEachIndexed { idx, opt ->
-                            val isSelected = (idx == selectedDriverPrefIndex)
-                            Surface(
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { selectedDriverPrefIndex = idx },
-                                shape = RoundedCornerShape(12.dp),
-                                color = if (isSelected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant,
-                                border = androidx.compose.foundation.BorderStroke(
-                                    width = if (isSelected) 1.5.dp else 1.dp,
-                                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
-                                )
-                            ) {
-                                Column(
-                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 4.dp),
-                                    horizontalAlignment = Alignment.CenterHorizontally
-                                ) {
-                                    Text(text = opt.icon, fontSize = 16.sp)
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(
-                                        text = opt.title,
-                                        fontSize = 11.sp,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Opção de Preferência de Viagem Fixa
-                    var isFixedDriverPreference by remember { mutableStateOf(false) }
-
-                    Spacer(modifier = Modifier.height(6.dp))
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { isFixedDriverPreference = !isFixedDriverPreference }
-                            .padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
+                    Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(text = "📌", fontSize = 13.sp)
-                            Text(
-                                text = "Fixar esta preferência para todas as viagens",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = MaterialTheme.colorScheme.onSurface
+                            Icon(
+                                imageVector = Icons.Rounded.MyLocation,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.primary
                             )
+                            Column {
+                                Text(
+                                    text = "Partida",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = origin,
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
                         }
 
-                        Switch(
-                            checked = isFixedDriverPreference,
-                            onCheckedChange = { isFixedDriverPreference = it },
-                            colors = SwitchDefaults.colors(
-                                checkedThumbColor = Color.White,
-                                checkedTrackColor = MaterialTheme.colorScheme.primary
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = 32.dp, top = 10.dp, bottom = 10.dp),
+                            color = MaterialTheme.colorScheme.outline
+                        )
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { showDestinationPicker = true },
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Search,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurface
                             )
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = "Buscar destino",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                                Text(
+                                    text = destination,
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                            }
+                            Icon(
+                                imageVector = Icons.Rounded.Place,
+                                contentDescription = null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
+                    }
+                }
+
+                // Titulo de escolha de viagem
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "Escolha sua viagem",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                        Text(
+                            text = "Valores estimados",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+                    CarameloChip(
+                        label = "Agora",
+                        selected = false,
+                        onClick = { },
+                        icon = Icons.Rounded.Schedule
+                    )
+                }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // CARD DE PRECIFICAÇÃO DA VIAGEM (BOTÕES + / - E BARRA DE DESLIZAR SLIDER)
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                    ) {
-                        Column(
-                            modifier = Modifier.padding(14.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Text(
-                                text = "💰 PREÇO OFERECIDO NA VIAGEM",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                letterSpacing = 1.sp
-                            )
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                // Botão - (Diminuir)
-                                IconButton(
-                                    onClick = {
-                                        if (offeredPriceAmount > 10.0f) {
-                                            offeredPriceAmount = (offeredPriceAmount - 2.0f).coerceAtLeast(10.0f)
-                                        }
-                                    },
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(MaterialTheme.colorScheme.surface, CircleShape)
-                                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                                ) {
-                                    Text(text = "−", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                }
-
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(
-                                        text = String.format("R$ %.2f", offeredPriceAmount).replace('.', ','),
-                                        fontSize = 24.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface,
-                                        fontFamily = FontFamily.Serif
-                                    )
-                                    Text(
-                                        text = "Ajuste com + / - ou deslize a barra abaixo",
-                                        fontSize = 10.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-
-                                // Botão + (Aumentar)
-                                IconButton(
-                                    onClick = {
-                                        if (offeredPriceAmount < 80.0f) {
-                                            offeredPriceAmount = (offeredPriceAmount + 2.0f).coerceAtMost(80.0f)
-                                        }
-                                    },
-                                    modifier = Modifier
-                                        .size(40.dp)
-                                        .background(MaterialTheme.colorScheme.surface, CircleShape)
-                                        .border(1.dp, MaterialTheme.colorScheme.outline, CircleShape)
-                                ) {
-                                    Text(text = "+", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(8.dp))
-
-                            // Barra de Deslizar (Slider para esquerda e direita)
-                            Slider(
-                                value = offeredPriceAmount,
-                                onValueChange = { offeredPriceAmount = it },
-                                valueRange = 10.0f..60.0f,
-                                colors = SliderDefaults.colors(
-                                    thumbColor = MaterialTheme.colorScheme.primary,
-                                    activeTrackColor = MaterialTheme.colorScheme.primary,
-                                    inactiveTrackColor = MaterialTheme.colorScheme.outline
-                                )
-                            )
-
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                Text(text = "Mín: R$ 10,00", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(text = "Deslize ◄ ►", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
-                                Text(text = "Máx: R$ 60,00", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Título de escolha de viagem
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Column {
-                            Text(
-                                text = "Escolha sua viagem",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                            Text(
-                                text = "Valores estimados",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-
-                        Surface(
-                            shape = RoundedCornerShape(12.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                        ) {
-                            Row(
-                                modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Text(text = "📅", fontSize = 12.sp)
-                                Text(text = "Agora", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
-                            }
-                        }
-                    }
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    // Lista de Categorias de Corrida
+                // Lista de Categorias de Corrida (cartoes selecionaveis)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     categories.forEachIndexed { index, cat ->
                         val isSelected = (index == selectedCategoryIndex)
                         Surface(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 3.dp)
-                                .clickable {
-                                    selectedCategoryIndex = index
-                                    offeredPriceAmount = when (index) {
-                                        0 -> 18.40f // Carro
-                                        1 -> 24.90f // Carro com Ar
-                                        2 -> 12.00f // Moto
-                                        3 -> 14.50f // Entregas
-                                        4 -> 45.00f // Frete
-                                        else -> 18.40f
-                                    }
-                                },
-                            shape = RoundedCornerShape(14.dp),
-                            color = if (isSelected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surface,
-                            border = androidx.compose.foundation.BorderStroke(
+                            onClick = {
+                                selectedCategoryIndex = index
+                                offeredPriceAmount = when (index) {
+                                    0 -> 18.40f // Carro
+                                    1 -> 24.90f // Carro com Ar
+                                    2 -> 12.00f // Moto
+                                    3 -> 14.50f // Entregas
+                                    4 -> 45.00f // Frete
+                                    else -> 18.40f
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(20.dp),
+                            color = if (isSelected) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surface,
+                            border = BorderStroke(
                                 width = if (isSelected) 2.dp else 1.dp,
                                 color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline
                             )
@@ -1079,43 +776,55 @@ fun RideHailingOverlay(
                             Row(
                                 modifier = Modifier.padding(12.dp),
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                Box(
+                                    modifier = Modifier
+                                        .size(48.dp)
+                                        .background(
+                                            if (isSelected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant,
+                                            RoundedCornerShape(14.dp)
+                                        ),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Text(text = cat.icon, fontSize = 26.sp)
-                                    Column {
-                                        Text(
-                                            text = cat.name,
-                                            fontSize = 14.sp,
-                                            fontWeight = FontWeight.Bold,
-                                            color = MaterialTheme.colorScheme.onSurface
-                                        )
-                                        Text(
-                                            text = cat.timeAndType,
-                                            fontSize = 11.sp,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
-                                    }
+                                    Icon(
+                                        imageVector = rideCategoryIcon(cat.name),
+                                        contentDescription = null,
+                                        modifier = Modifier.size(26.dp),
+                                        tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
+                                    )
                                 }
-
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(
+                                        text = cat.name,
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
+                                    )
+                                    Text(
+                                        text = cat.timeAndType,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                                 Column(horizontalAlignment = Alignment.End) {
                                     Text(
                                         text = cat.price,
-                                        fontSize = 15.sp,
-                                        fontWeight = FontWeight.Bold,
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        style = MaterialTheme.typography.titleSmall,
+                                        color = if (isSelected) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurface
                                     )
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(2.dp)
                                     ) {
-                                        Text(text = "👤", fontSize = 11.sp)
+                                        Icon(
+                                            imageVector = Icons.Rounded.Person,
+                                            contentDescription = "Lugares",
+                                            modifier = Modifier.size(14.dp),
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
                                         Text(
                                             text = "${cat.capacity}",
-                                            fontSize = 11.sp,
+                                            style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant
                                         )
                                     }
@@ -1123,564 +832,498 @@ fun RideHailingOverlay(
                             }
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // Método de Pagamento
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 2.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(text = "💳", fontSize = 16.sp)
-                            Column {
-                                Text(text = "Pagamento", fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                Text(
-                                    text = "Visa •••• 2048",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                        }
-                        Text(text = "›", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
+                // SEÇÃO DE SELEÇÃO DE TIPO DE MOTORISTA (Geral, LGBTQIA+, Mulher, Homem)
+                CarameloSectionLabel(text = "Tipo de motorista preferido")
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    driverPreferences.forEachIndexed { idx, opt ->
+                        CarameloChip(
+                            label = opt.title,
+                            selected = idx == selectedDriverPrefIndex,
+                            onClick = {
+                                selectedDriverPrefIndex = idx
+                                // Com "Fixar" ligado, a nova escolha vira o padrao
+                                if (isFixedDriverPreference) {
+                                    CarameloRepository.saveDefaultDriverPreference(context, opt.id)
+                                }
+                            },
+                            icon = driverPreferenceIcon(opt.id)
+                        )
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(14.dp))
-
-                    // Botão Principal "Confirmar [Categoria] >"
-                    val currentCatName = categories[selectedCategoryIndex].name.removePrefix("Caramelo ")
-                    val currentDriverPref = driverPreferences[selectedDriverPrefIndex].title
-                    val formattedOfferedPrice = String.format("R$ %.2f", offeredPriceAmount).replace('.', ',')
-                    Button(
-                        onClick = {
-                            rideStatus = RideStatus.SEARCHING_DRIVER
-                            onRideRequested(destination, categories[selectedCategoryIndex].name, currentDriverPref)
-                        },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(52.dp),
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Text(
-                                text = "Confirmar $currentCatName por $formattedOfferedPrice",
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = Color.White
+                // Opção de Preferência de Viagem Fixa
+                CarameloSwitchRow(
+                    icon = Icons.Rounded.CheckCircle,
+                    title = "Fixar esta preferência para todas as viagens",
+                    checked = isFixedDriverPreference,
+                    onCheckedChange = { checked ->
+                        isFixedDriverPreference = checked
+                        CarameloRepository.saveFixedPreferenceEnabled(context, checked)
+                        if (checked) {
+                            CarameloRepository.saveDefaultDriverPreference(
+                                context,
+                                driverPreferences[selectedDriverPrefIndex].id
                             )
-                            Text(text = "›", fontSize = 18.sp, color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
+                )
 
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    // Rodapé de Segurança
+                // CARD DE PRECIFICAÇÃO DA VIAGEM (BOTÕES + / - E BARRA DE DESLIZAR SLIDER)
+                CarameloCard(color = MaterialTheme.colorScheme.surfaceVariant) {
+                    CarameloSectionLabel(text = "Preço oferecido na viagem")
                     Row(
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center,
+                        horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(text = "🛡️ ", fontSize = 12.sp)
-                        Text(
-                            text = "Viagens protegidas do início ao fim",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        // Botão - (Diminuir)
+                        CarameloCircleButton(
+                            icon = Icons.Rounded.Remove,
+                            contentDescription = "Diminuir oferta",
+                            onClick = {
+                                offeredPriceAmount = (offeredPriceAmount - priceStep).coerceIn(priceMin, priceMax)
+                            },
+                            style = CircleStyle.Outline
                         )
-                    }
-                }
-            }
-        }
-    }
-}
 
-// Drawer / Menu Lateral da Marina Costa
-@Composable
-fun CarameloDrawerContent(
-    onClose: () -> Unit,
-    onOpenTripHistory: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenPresentation: () -> Unit,
-    onToast: (String) -> Unit
-) {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.surface
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            // Top Bar com fechar 'X', Logo, Pitch, MC
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                IconButton(onClick = onClose) {
-                    Text(text = "✕", fontSize = 20.sp, color = MaterialTheme.colorScheme.onSurface, fontWeight = FontWeight.Bold)
-                }
-
-                CarameloLogo()
-
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Surface(
-                        shape = RoundedCornerShape(16.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        modifier = Modifier.height(34.dp)
-                    ) {
-                        Row(
-                            modifier = Modifier.padding(horizontal = 10.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        Column(
+                            modifier = Modifier.weight(1f),
+                            horizontalAlignment = Alignment.CenterHorizontally
                         ) {
-                            Text(text = "📊", fontSize = 12.sp)
                             Text(
-                                text = "Pitch",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
+                                text = formatBrl(offeredPriceAmount),
+                                style = MaterialTheme.typography.displaySmall,
                                 color = MaterialTheme.colorScheme.onSurface
                             )
+                            Text(
+                                text = "Ajuste com + / - ou deslize a barra",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
-                    }
 
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .background(CarameloRustDark, CircleShape)
-                            .clickable { onClose() },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "MC",
-                            color = Color.White,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 13.sp
+                        // Botão + (Aumentar)
+                        CarameloCircleButton(
+                            icon = Icons.Rounded.Add,
+                            contentDescription = "Aumentar oferta",
+                            onClick = {
+                                offeredPriceAmount = (offeredPriceAmount + priceStep).coerceIn(priceMin, priceMax)
+                            },
+                            style = CircleStyle.Primary
                         )
                     }
+
+                    // Barra de Deslizar (Slider para esquerda e direita)
+                    Slider(
+                        value = offeredPriceAmount,
+                        onValueChange = { offeredPriceAmount = it },
+                        valueRange = priceMin..priceMax,
+                        colors = SliderDefaults.colors(
+                            thumbColor = MaterialTheme.colorScheme.primary,
+                            activeTrackColor = MaterialTheme.colorScheme.primary,
+                            inactiveTrackColor = MaterialTheme.colorScheme.outline
+                        )
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Text(text = "Mín: ${formatBrl(priceMin)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(text = "Máx: ${formatBrl(priceMax)}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(24.dp))
+                // Método de Pagamento
+                CarameloListRow(
+                    icon = Icons.Rounded.CreditCard,
+                    title = paymentLabel(paymentMethod),
+                    subtitle = if (activeCoupon != null) "Pagamento · Cupom $activeCoupon" else "Pagamento",
+                    onClick = onOpenWallet,
+                    trailing = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.KeyboardArrowRight,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                )
 
-            // Informações do Usuário
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(56.dp)
-                        .background(CarameloRustDark, CircleShape),
-                    contentAlignment = Alignment.Center
+                // Botão Principal "Confirmar [Categoria] por R$ ..."
+                val currentCatName = categories[selectedCategoryIndex].name.removePrefix("Caramelo ")
+                val currentDriverPref = driverPreferences[selectedDriverPrefIndex].title
+                val formattedOfferedPrice = formatBrl(offeredPriceAmount)
+                CarameloPillButton(
+                    text = "Confirmar $currentCatName por $formattedOfferedPrice",
+                    onClick = {
+                        // Propostas geradas a partir do valor oferecido neste momento
+                        requestedPrice = offeredPriceAmount
+                        currentOffers.clear()
+                        currentOffers.addAll(buildDriverOffers(offeredPriceAmount))
+                        rideStatus = RideStatus.SEARCHING_DRIVER
+                        onRideRequested(destination, categories[selectedCategoryIndex].name, currentDriverPref)
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    style = PillStyle.Primary
+                )
+
+                // Rodapé de Segurança
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(
-                        text = "MC",
-                        color = Color.White,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 20.sp
-                    )
-                }
-
-                Column {
-                    Text(
-                        text = "Marina Costa",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                    Icon(
+                        imageVector = Icons.Rounded.Shield,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp),
+                        tint = CarameloGreen
                     )
                     Text(
-                        text = "4,92 de avaliação ★",
-                        fontSize = 13.sp,
+                        text = "Viagens protegidas do início ao fim",
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // Itens de Menu
-            val menuItems = listOf(
-                Triple("🕒", "Suas viagens", onOpenTripHistory),
-                Triple("⚙️", "Configurações", onOpenSettings),
-                Triple("💳", "Pagamentos", { onToast("Formas de pagamento abertas") }),
-                Triple("🛡️", "Segurança", { onToast("Central de Segurança") }),
-                Triple("👥", "Convide amigos", { onToast("Convide e Ganhe R$ 10") })
-            )
-
-            menuItems.forEach { (emoji, title, action) ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { action() }
-                        .padding(vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        Text(text = emoji, fontSize = 20.sp)
-                        Text(
-                            text = title,
-                            fontSize = 16.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-                    Text(text = "›", fontSize = 18.sp, color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.Bold)
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-            }
-
-            Spacer(modifier = Modifier.height(28.dp))
-
-            // Card Promocional "Indique o Caramelo"
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(20.dp),
-                colors = CardDefaults.cardColors(containerColor = CarameloRustDark)
-            ) {
-                Column(modifier = Modifier.padding(20.dp)) {
-                    Text(
-                        text = "GANHE R$ 10",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = CarameloYellow,
-                        letterSpacing = 1.sp
-                    )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "Indique o Caramelo para alguém especial.",
-                        fontSize = 22.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = Color.White,
-                        fontFamily = FontFamily.Serif
-                    )
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Button(
-                        onClick = { onToast("Link de indicação copiado!") },
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = CarameloYellow)
-                    ) {
-                        Text(
-                            text = "Convidar agora",
-                            color = CarameloRustDark,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(20.dp))
-
-            // Botão Ver Apresentação Comercial
-            OutlinedButton(
-                onClick = onOpenPresentation,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp),
-                shape = RoundedCornerShape(12.dp),
-                border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Text(text = "📊", fontSize = 16.sp)
-                    Text(
-                        text = "Ver apresentação comercial",
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
         }
-    }
-}
 
-// TELA DE HISTÓRICO DE VIAGENS
-data class TripHistoryItem(
-    val date: String,
-    val origin: String,
-    val destination: String,
-    val driverName: String,
-    val driverRating: String,
-    val category: String,
-    val driverType: String,
-    val price: String
-)
-
-@Composable
-fun CarameloTripHistoryScreen(onClose: () -> Unit) {
-    val context = androidx.compose.ui.platform.LocalContext.current
-    val historyItems = remember { CarameloRepository.getTripHistory(context) }
-
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        // Overlay de busca (Stream de Propostas) e motorista a caminho - desenhado por cima do painel
+        if (rideStatus != RideStatus.IDLE) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.5f))
+                    .clickable { },
+                contentAlignment = Alignment.BottomCenter
             ) {
-                CarameloLogo()
-
-                OutlinedButton(
-                    onClick = onClose,
-                    shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    shadowElevation = 16.dp
                 ) {
-                    Text(
-                        text = "✕ Voltar",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                }
-            }
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .verticalScroll(rememberScrollState())
+                            .padding(start = 20.dp, end = 20.dp, top = 10.dp)
+                            .navigationBarsPadding()
+                            .padding(bottom = 20.dp),
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        // Alca de arrasto
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterHorizontally)
+                                .size(width = 40.dp, height = 5.dp)
+                                .background(MaterialTheme.colorScheme.outline, CircleShape)
+                        )
 
-            Spacer(modifier = Modifier.height(24.dp))
+                        if (rideStatus == RideStatus.SEARCHING_DRIVER) {
+                            // Só motoristas verificados e do tipo escolhido ("Geral" = qualquer um)
+                            val chosenGroup = driverPreferences[selectedDriverPrefIndex].id
+                            val visibleOffers = currentOffers.filter {
+                                it.verified &&
+                                    (chosenGroup == "Geral" || it.groupName() == chosenGroup) &&
+                                    it.driverName.trim().lowercase() !in blockedNames
+                            }
 
-            Text(
-                text = "— SEU HISTÓRICO",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                letterSpacing = 1.sp
-            )
-
-            Text(
-                text = "Suas Viagens",
-                fontSize = 28.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                fontFamily = FontFamily.Serif
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            historyItems.forEach { trip ->
-                Card(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 6.dp),
-                    shape = RoundedCornerShape(16.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                ) {
-                    Column(modifier = Modifier.padding(16.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = trip.date,
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
-                            )
-
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = CarameloGreen.copy(alpha = 0.15f)
+                            // Cabecalho: titulo e botao de fechar
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
-                                Text(
-                                    text = "✓ Concluída",
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = CarameloGreen,
-                                    modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp)
+                                Column(modifier = Modifier.weight(1f)) {
+                                    CarameloSectionLabel(text = "Propostas dos motoristas (${visibleOffers.size})")
+                                    Text(
+                                        text = "Motoristas aceitando viagens",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        color = MaterialTheme.colorScheme.onSurface
+                                    )
+                                }
+                                CarameloCircleButton(
+                                    icon = Icons.Rounded.Close,
+                                    contentDescription = "Fechar",
+                                    onClick = { finishRide() },
+                                    style = CircleStyle.Outline
                                 )
                             }
-                        }
 
-                        Spacer(modifier = Modifier.height(10.dp))
+                            CarameloSegmentedProgress(progress = 0.4f, height = 10.dp)
 
-                        Text(
-                            text = "de: ${trip.origin}",
-                            fontSize = 13.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Text(
-                            text = "para: ${trip.destination}",
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outline)
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column {
-                                Text(
-                                    text = "Motorista: ${trip.driverName} (${trip.driverRating})",
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    color = MaterialTheme.colorScheme.onSurface
+                            // Selo de segurança + filtro em uso
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.VerifiedUser,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                    tint = CarameloGreen
                                 )
                                 Text(
-                                    text = "${trip.category} • Motorista: ${trip.driverType}",
-                                    fontSize = 11.sp,
+                                    text = if (chosenGroup == "Geral")
+                                        "Todos os motoristas passaram pela checagem de antecedentes e identidade"
+                                    else
+                                        "Só motoristas do grupo $chosenGroup, todos com antecedentes e identidade checados",
+                                    style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
 
                             Text(
-                                text = trip.price,
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary
+                                text = "Toque na proposta para remover/recusar ou clique em Aceitar",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
+
+                            if (visibleOffers.isEmpty()) {
+                                CarameloCard(color = MaterialTheme.colorScheme.surfaceVariant) {
+                                    Text(
+                                        text = "Buscando novas propostas...",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                    CarameloPillButton(
+                                        text = "Restaurar Propostas",
+                                        onClick = {
+                                            currentOffers.clear()
+                                            currentOffers.addAll(initialDriverOffers)
+                                        },
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+                            } else {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .heightIn(max = 320.dp)
+                                        .verticalScroll(rememberScrollState()),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                                ) {
+                                    visibleOffers.forEach { offer ->
+                                        // Removível ao toque direto no card
+                                        Surface(
+                                            onClick = { currentOffers.remove(offer) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                            shape = RoundedCornerShape(20.dp),
+                                            color = MaterialTheme.colorScheme.surface,
+                                            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
+                                        ) {
+                                            Column(
+                                                modifier = Modifier.padding(14.dp),
+                                                verticalArrangement = Arrangement.spacedBy(10.dp)
+                                            ) {
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                                                ) {
+                                                    OdaInitialsAvatar(name = offer.driverName, size = 44.dp)
+                                                    Column(
+                                                        modifier = Modifier.weight(1f),
+                                                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = offer.driverName,
+                                                            style = MaterialTheme.typography.titleSmall,
+                                                            color = MaterialTheme.colorScheme.onSurface
+                                                        )
+                                                        Text(
+                                                            text = "${offer.vehicle} · ${offer.rating}",
+                                                            style = MaterialTheme.typography.bodySmall,
+                                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                        )
+                                                        Row(
+                                                            verticalAlignment = Alignment.CenterVertically,
+                                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                        ) {
+                                                            OdaPlateBadge(plate = offer.plate)
+                                                            OdaVerifiedBadge(onClick = {
+                                                                safetyDuringTrip = false
+                                                                safetyOffer = offer
+                                                            })
+                                                        }
+                                                    }
+                                                    Text(
+                                                        text = offer.offeredPrice,
+                                                        style = MaterialTheme.typography.titleMedium,
+                                                        color = MaterialTheme.colorScheme.primary
+                                                    )
+                                                }
+
+                                                Row(
+                                                    modifier = Modifier.fillMaxWidth(),
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "${offer.driverTypeTag.substringAfter(' ')} · ${offer.eta}",
+                                                        modifier = Modifier.weight(1f),
+                                                        style = MaterialTheme.typography.labelMedium,
+                                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                                    )
+                                                    CarameloCircleButton(
+                                                        icon = Icons.Rounded.Close,
+                                                        contentDescription = "Recusar proposta de ${offer.driverName}",
+                                                        onClick = { currentOffers.remove(offer) },
+                                                        style = CircleStyle.Outline,
+                                                        size = 44.dp
+                                                    )
+                                                    CarameloPillButton(
+                                                        text = "Aceitar",
+                                                        onClick = {
+                                                            acceptedOfferId = offer.id
+                                                            // Código de 4 dígitos para o embarque; o histórico só grava no fim
+                                                            boardingPin = kotlin.random.Random.nextInt(1000, 10000).toString()
+                                                            chatMessages.clear()
+                                                            rideStatus = RideStatus.DRIVER_ARRIVING
+                                                        }
+                                                    )
+                                                }
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+
+                            CarameloPillButton(
+                                text = "Cancelar busca",
+                                onClick = { finishRide() },
+                                modifier = Modifier.fillMaxWidth(),
+                                style = PillStyle.Outline
+                            )
+                        } else {
+                            when (rideStatus) {
+                                RideStatus.DRIVER_ARRIVING -> RideArrivingContent(
+                                    driver = activeDriver,
+                                    pin = boardingPin,
+                                    onBoarded = { rideStatus = RideStatus.IN_TRIP },
+                                    onCancel = { showCancelDialog = true },
+                                    onCall = { showCallDialog = true },
+                                    onChat = { showChatDialog = true },
+                                    onRoute = openRoute,
+                                    onSafety = openSafety
+                                )
+                                RideStatus.IN_TRIP -> RideInTripContent(
+                                    driver = activeDriver,
+                                    destination = destination,
+                                    onArrived = { rideStatus = RideStatus.COMPLETED },
+                                    onCancel = { showCancelDialog = true },
+                                    onCall = { showCallDialog = true },
+                                    onChat = { showChatDialog = true },
+                                    onRoute = openRoute,
+                                    onSafety = openSafety,
+                                    paused = showCancelDialog
+                                )
+                                else -> RideReceiptContent(
+                                    driver = activeDriver,
+                                    destination = destination,
+                                    onFinish = { rating, tipText, fare, payment ->
+                                        saveCompletedTrip(
+                                            context, activeDriver, origin, destination,
+                                            categories[selectedCategoryIndex].name,
+                                            fare, rating, tipText, payment
+                                        )
+                                        // O cupom vale para uma corrida só
+                                        if (CarameloRepository.getActiveCoupon(context) != null) {
+                                            CarameloRepository.clearCoupon(context)
+                                        }
+                                        finishRide()
+                                    }
+                                )
+                            }
                         }
                     }
                 }
             }
         }
-    }
-}
 
-// Apresentação Comercial (Slide 01/07) - Mobilidade com calor humano
-@Composable
-fun CarameloPresentationScreen(onClose: () -> Unit) {
-    Surface(
-        modifier = Modifier.fillMaxSize(),
-        color = MaterialTheme.colorScheme.background
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(20.dp)
-                .verticalScroll(rememberScrollState())
-        ) {
-            // Header do Slide
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                CarameloLogo()
+        // Destino editável
+        if (showDestinationPicker) {
+            DestinationPickerSheet(
+                current = destination,
+                onPick = {
+                    destination = it
+                    showDestinationPicker = false
+                },
+                onDismiss = { showDestinationPicker = false }
+            )
+        }
 
-                Text(
-                    text = "01 / 07",
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-
-                OutlinedButton(
-                    onClick = onClose,
-                    shape = RoundedCornerShape(12.dp),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outline)
-                ) {
-                    Text(
-                        text = "✕ Voltar ao app",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
+        // Cancelamento com motivo (a caminho ou em viagem)
+        if (showCancelDialog && (rideStatus == RideStatus.DRIVER_ARRIVING || rideStatus == RideStatus.IN_TRIP)) {
+            CancelRideDialog(
+                onConfirm = {
+                    saveCanceledTrip(
+                        context, activeDriver, origin, destination,
+                        categories[selectedCategoryIndex].name, paymentLabel(paymentMethod)
                     )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Conteúdo principal do slide
-            Text(
-                text = "APRESENTAÇÃO COMERCIAL · 2025",
-                fontSize = 11.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                letterSpacing = 1.sp
+                    showCancelDialog = false
+                    finishRide()
+                },
+                onDismiss = { showCancelDialog = false }
             )
+        }
 
-            Spacer(modifier = Modifier.height(12.dp))
-
-            Text(
-                text = "Mobilidade\ncom calor\nhumano.",
-                fontSize = 44.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.primary,
-                fontFamily = FontFamily.Serif,
-                lineHeight = 48.sp
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Uma plataforma brasileira de mobilidade urbana criada para transformar trajetos cotidianos em experiências mais simples, seguras e próximas.",
-                fontSize = 16.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                lineHeight = 24.sp
-            )
-
-            Spacer(modifier = Modifier.height(40.dp))
-
-            // Diagrama com círculos concêntricos e ícone de carro
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(260.dp)
-                    .background(MaterialTheme.colorScheme.surface, RoundedCornerShape(24.dp))
-                    .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(24.dp)),
-                contentAlignment = Alignment.Center
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(220.dp)
-                        .background(CarameloYellow.copy(alpha = 0.3f), CircleShape),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(150.dp)
-                            .background(CarameloYellow.copy(alpha = 0.6f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = "🚖", fontSize = 48.sp)
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text(
-                                text = "caramelo",
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.primary,
-                                fontFamily = FontFamily.Serif
-                            )
-                        }
+        // Chat simulado com o motorista
+        if (showChatDialog) {
+            RideChatDialog(
+                driverName = activeDriver.driverName,
+                messages = chatMessages,
+                onSend = { text ->
+                    chatMessages.add(ChatLine(true, text))
+                    chatJob = chatScope.launch {
+                        delay(1500)
+                        chatMessages.add(ChatLine(false, "Ok, combinado!"))
                     }
+                },
+                onDismiss = { showChatDialog = false }
+            )
+        }
+
+        if (showCallDialog) {
+            CallDemoDialog(onDismiss = { showCallDialog = false })
+        }
+
+        // Ficha de segurança do motorista (selo "Verificado" ou ação Segurança)
+        val safetyTarget = safetyOffer
+        if (safetyTarget != null) {
+            val safetyContext = androidx.compose.ui.platform.LocalContext.current
+            DriverSafetyDialog(
+                offer = safetyTarget,
+                duringTrip = safetyDuringTrip,
+                onDismiss = { safetyOffer = null },
+                onCallEmergency = {
+                    // ACTION_DIAL só abre o discador com o número; não liga sozinho e não pede permissão
+                    val dial = android.content.Intent(android.content.Intent.ACTION_DIAL, "tel:190".toUri())
+                    try {
+                        safetyContext.startActivity(dial)
+                    } catch (_: android.content.ActivityNotFoundException) {
+                        Toast.makeText(safetyContext, "Nenhum app de telefone encontrado. Ligue 190.", Toast.LENGTH_LONG).show()
+                    }
+                },
+                onShareTrip = {
+                    val text = "Estou numa viagem Caramelo com ${safetyTarget.driverName}, " +
+                        "${safetyTarget.vehicle} placa ${safetyTarget.plate}, indo para $destination."
+                    val send = android.content.Intent(android.content.Intent.ACTION_SEND).apply {
+                        type = "text/plain"
+                        putExtra(android.content.Intent.EXTRA_TEXT, text)
+                    }
+                    safetyContext.startActivity(android.content.Intent.createChooser(send, "Compartilhar viagem"))
                 }
-            }
+            )
         }
     }
 }

@@ -1,0 +1,34 @@
+{
+  "v": 3,
+  "createdOnFiles": {"v": 1, "at": "2026-11-24T20:10:00Z"},
+  "title": "Caramelo — UI/UX",
+  "launch": {"view": "canvas"},
+  "pages": [],
+  "boards": {
+    "Main.dc.html": {"x": 0, "y": 0, "w": 1280, "h": 980, "title": "Sistema visual Caramelo"},
+    "Login.dc.html": {"x": 0, "y": 1400, "w": 390, "h": 844, "title": "01 Entrar", "is_interactive": true, "radius": 40},
+    "Inicio.dc.html": {"x": 470, "y": 1400, "w": 390, "h": 844, "title": "02 Início · Para onde vamos?", "is_interactive": true, "radius": 40},
+    "Escolha.dc.html": {"x": 940, "y": 1400, "w": 390, "h": 844, "title": "03 Escolha da viagem", "is_interactive": true, "radius": 40},
+    "ACaminho.dc.html": {"x": 1410, "y": 1400, "w": 390, "h": 844, "title": "04 Motorista a caminho", "is_interactive": true, "radius": 40},
+    "EmViagem.dc.html": {"x": 1880, "y": 1400, "w": 390, "h": 844, "title": "05 Em viagem", "is_interactive": true, "radius": 40},
+    "Historico.dc.html": {"x": 2350, "y": 1400, "w": 390, "h": 844, "title": "06 Suas viagens", "is_interactive": true, "radius": 40},
+    "Perfil.dc.html": {"x": 2820, "y": 1400, "w": 390, "h": 844, "title": "07 Perfil e segurança", "is_interactive": true, "radius": 40},
+    "Propostas.dc.html": {"x": 0, "y": 2600, "w": 390, "h": 844, "title": "08 Propostas · escolha do motorista", "is_interactive": true, "radius": 40},
+    "FichaSeguranca.dc.html": {"x": 470, "y": 2600, "w": 390, "h": 844, "title": "09 Ficha de segurança do motorista", "is_interactive": true, "radius": 40},
+    "Verificacao.dc.html": {"x": 1180, "y": 2600, "w": 390, "h": 844, "title": "10 Motorista · verificação de segurança", "is_interactive": true, "radius": 40},
+    "VerificacaoStatus.dc.html": {"x": 1650, "y": 2600, "w": 390, "h": 844, "title": "11 Motorista · status da verificação", "is_interactive": true, "radius": 40},
+    "Destino.dc.html": {"x": 0, "y": 3800, "w": 390, "h": 844, "title": "12 Escolha do destino", "is_interactive": true, "radius": 40},
+    "Recibo.dc.html": {"x": 470, "y": 3800, "w": 390, "h": 844, "title": "13 Recibo, avaliação e gorjeta", "is_interactive": true, "radius": 40},
+    "Carteira.dc.html": {"x": 940, "y": 3800, "w": 390, "h": 844, "title": "14 Carteira", "is_interactive": true, "radius": 40},
+    "Ajuda.dc.html": {"x": 1410, "y": 3800, "w": 390, "h": 844, "title": "15 Ajuda, termos e privacidade", "is_interactive": true, "radius": 40}
+  },
+  "order": ["Main.dc.html", "Login.dc.html", "Inicio.dc.html", "Escolha.dc.html", "ACaminho.dc.html", "EmViagem.dc.html", "Historico.dc.html", "Perfil.dc.html", "Propostas.dc.html", "FichaSeguranca.dc.html", "Verificacao.dc.html", "VerificacaoStatus.dc.html", "Destino.dc.html", "Recibo.dc.html", "Carteira.dc.html", "Ajuda.dc.html"],
+  "notes": {
+    "t1": {"x": 0, "y": -300, "text": "Caramelo · sistema visual", "kind": "title1", "maxW": 1280},
+    "t2": {"x": 0, "y": 1100, "text": "Fluxo principal do passageiro", "kind": "title1", "maxW": 3210},
+    "t3": {"x": 0, "y": 2400, "text": "Escolha do motorista e segurança", "kind": "title1", "maxW": 860},
+    "t4": {"x": 1180, "y": 2400, "text": "Motorista: verificação de antecedentes", "kind": "title1", "maxW": 860},
+    "t5": {"x": 0, "y": 3600, "text": "Corrida completa, carteira e ajuda", "kind": "title1", "maxW": 1800}
+  },
+  "designSystems": []
+}

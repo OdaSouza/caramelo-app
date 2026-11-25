@@ -16,6 +16,34 @@ object CarameloRepository {
     }
 
     // -------------------------------------------------------------
+    // 0. SESSÃO (sem servidor: só um sinalizador local)
+    // -------------------------------------------------------------
+    fun setLoggedIn(context: Context, loggedIn: Boolean) {
+        getPrefs(context).edit { putBoolean("is_logged_in", loggedIn) }
+    }
+
+    fun isLoggedIn(context: Context): Boolean {
+        return getPrefs(context).getBoolean("is_logged_in", false)
+    }
+
+    // Apaga todos os dados locais do usuário (perfil, histórico, bloqueios, motorista, tema)
+    fun clearAllUserData(context: Context) {
+        listOf(
+            PREFS_NAME,
+            "caramelo_theme_prefs",
+            "secure_driver_prefs",
+            "secure_vehicle_prefs"
+        ).forEach { nome ->
+            try {
+                context.getSharedPreferences(nome, Context.MODE_PRIVATE).edit { clear() }
+                context.deleteSharedPreferences(nome)
+            } catch (_: Exception) {
+                // segue para o próximo arquivo
+            }
+        }
+    }
+
+    // -------------------------------------------------------------
     // 1. PERSISTÊNCIA DE DADOS DO USUÁRIO & ENDEREÇO
     // -------------------------------------------------------------
     fun saveUserProfile(
@@ -43,14 +71,15 @@ object CarameloRepository {
         }
     }
 
-    fun getUserName(context: Context): String = getPrefs(context).getString("user_name", "Marina Costa") ?: "Marina Costa"
-    fun getUserEmail(context: Context): String = getPrefs(context).getString("user_email", "marina.costa@email.com") ?: "marina.costa@email.com"
-    fun getUserCep(context: Context): String = getPrefs(context).getString("user_cep", "01310-100") ?: "01310-100"
-    fun getUserLogradouro(context: Context): String = getPrefs(context).getString("user_logradouro", "Av. Paulista") ?: "Av. Paulista"
-    fun getUserNumber(context: Context): String = getPrefs(context).getString("user_number", "1000") ?: "1000"
-    fun getUserBairro(context: Context): String = getPrefs(context).getString("user_bairro", "Bela Vista") ?: "Bela Vista"
-    fun getUserCity(context: Context): String = getPrefs(context).getString("user_city", "São Paulo") ?: "São Paulo"
-    fun getUserState(context: Context): String = getPrefs(context).getString("user_state", "SP") ?: "SP"
+    fun getUserName(context: Context): String = getPrefs(context).getString("user_name", "Passageiro") ?: "Passageiro"
+    fun getUserEmail(context: Context): String = getPrefs(context).getString("user_email", "") ?: ""
+    fun getUserCep(context: Context): String = getPrefs(context).getString("user_cep", "") ?: ""
+    fun getUserLogradouro(context: Context): String = getPrefs(context).getString("user_logradouro", "") ?: ""
+    fun getUserNumber(context: Context): String = getPrefs(context).getString("user_number", "") ?: ""
+    fun getUserBairro(context: Context): String = getPrefs(context).getString("user_bairro", "") ?: ""
+    fun getUserCity(context: Context): String = getPrefs(context).getString("user_city", "") ?: ""
+    fun getUserState(context: Context): String = getPrefs(context).getString("user_state", "") ?: ""
+    fun getUserComplement(context: Context): String = getPrefs(context).getString("user_complement", "") ?: ""
 
     // -------------------------------------------------------------
     // 2. PERSISTÊNCIA DE DADOS DO MOTORISTA PARCEIRO & CNH
@@ -61,6 +90,55 @@ object CarameloRepository {
 
     fun isDriverRegistered(context: Context): Boolean {
         return getPrefs(context).getBoolean("is_driver_registered", false)
+    }
+
+    // -------------------------------------------------------------
+    // 2b. VERIFICAÇÃO DE SEGURANÇA DO MOTORISTA (antecedentes, selfie, EAR)
+    // Sem servidor ainda: o status é só local. A análise real é do backend.
+    // -------------------------------------------------------------
+    const val VERIFICATION_NOT_SENT = "nao_enviada"
+    const val VERIFICATION_IN_REVIEW = "em_analise"
+    const val VERIFICATION_APPROVED = "aprovada"
+
+    fun setDriverVerificationStatus(context: Context, status: String) {
+        getPrefs(context).edit { putString("driver_verification_status", status) }
+    }
+
+    fun getDriverVerificationStatus(context: Context): String {
+        return getPrefs(context).getString("driver_verification_status", VERIFICATION_NOT_SENT) ?: VERIFICATION_NOT_SENT
+    }
+
+    // Grupo autodeclarado pelo motorista para o filtro de preferência (Geral, Mulher, Homem, LGBTQIA+)
+    // Dado sensível (LGPD): fica em EncryptedSharedPreferences ("secure_driver_prefs")
+    fun setDriverDeclaredGroup(context: Context, group: String) {
+        try {
+            securePrefs(context, "secure_driver_prefs").edit { putString("driver_declared_group", group) }
+        } catch (_: Exception) {
+            // sem criptografia disponível: não grava em texto puro
+        }
+    }
+
+    fun getDriverDeclaredGroup(context: Context): String {
+        return try {
+            securePrefs(context, "secure_driver_prefs").getString("driver_declared_group", "Geral") ?: "Geral"
+        } catch (_: Exception) {
+            "Geral"
+        }
+    }
+
+    // security-crypto foi descontinuado pelo AndroidX; migrar para DataStore + Tink quando houver backend
+    @Suppress("DEPRECATION")
+    private fun securePrefs(context: Context, name: String): SharedPreferences {
+        val masterKey = androidx.security.crypto.MasterKey.Builder(context)
+            .setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM)
+            .build()
+        return androidx.security.crypto.EncryptedSharedPreferences.create(
+            context,
+            name,
+            masterKey,
+            androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
     }
 
     // -------------------------------------------------------------
@@ -81,6 +159,35 @@ object CarameloRepository {
     fun isFixedPreferenceEnabled(context: Context): Boolean {
         return getPrefs(context).getBoolean("is_fixed_pref_enabled", false)
     }
+
+    // Interruptores das Configurações (padrão: ligados)
+    fun setEnforceNoBlockedMatch(context: Context, enabled: Boolean) {
+        getPrefs(context).edit { putBoolean("enforce_no_blocked_match", enabled) }
+    }
+
+    fun isEnforceNoBlockedMatch(context: Context): Boolean =
+        getPrefs(context).getBoolean("enforce_no_blocked_match", true)
+
+    fun setAutoBlockLowRating(context: Context, enabled: Boolean) {
+        getPrefs(context).edit { putBoolean("auto_block_low_rating", enabled) }
+    }
+
+    fun isAutoBlockLowRating(context: Context): Boolean =
+        getPrefs(context).getBoolean("auto_block_low_rating", true)
+
+    fun setNotificationsEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit { putBoolean("notifications_enabled", enabled) }
+    }
+
+    fun isNotificationsEnabled(context: Context): Boolean =
+        getPrefs(context).getBoolean("notifications_enabled", true)
+
+    fun setShareRouteEnabled(context: Context, enabled: Boolean) {
+        getPrefs(context).edit { putBoolean("share_route_enabled", enabled) }
+    }
+
+    fun isShareRouteEnabled(context: Context): Boolean =
+        getPrefs(context).getBoolean("share_route_enabled", true)
 
     fun savePriceIncrementStep(context: Context, step: String) {
         getPrefs(context).edit { putString("price_increment_step", step) }
@@ -108,10 +215,7 @@ object CarameloRepository {
     }
 
     fun getBlockedDrivers(context: Context): List<BlockedDriver> {
-        val jsonStr = getPrefs(context).getString("blocked_drivers_json", null) ?: return listOf(
-            BlockedDriver("1", "João Pedro", "Honda Fit • Placa: XYZ-9876", "Direção imprudente"),
-            BlockedDriver("2", "Marcos Oliveira", "Chevrolet Onix • Placa: KML-1234", "Atraso excessivo no embarque")
-        )
+        val jsonStr = getPrefs(context).getString("blocked_drivers_json", null) ?: return emptyList()
         return try {
             val list = mutableListOf<BlockedDriver>()
             val jsonArray = JSONArray(jsonStr)
@@ -147,6 +251,10 @@ object CarameloRepository {
                 put("category", trip.category)
                 put("driverType", trip.driverType)
                 put("price", trip.price)
+                put("rating", trip.rating)
+                put("tip", trip.tip)
+                put("payment", trip.payment)
+                put("status", trip.status)
             }
             jsonArray.put(obj)
         }
@@ -154,12 +262,7 @@ object CarameloRepository {
     }
 
     fun getTripHistory(context: Context): List<TripHistoryItem> {
-        val jsonStr = getPrefs(context).getString("trip_history_json", null) ?: return listOf(
-            TripHistoryItem("12 de Março, 14:30", "Localização atual", "Shopping Cidade Jardim", "Carlos Silva", "4.9 ★", "Caramelo Leve", "LGBTQIA+", "R$ 18,40"),
-            TripHistoryItem("10 de Março, 09:15", "Alameda Santos, 1420", "Av. Faria Lima, 3400", "Fernanda Lima", "5.0 ★", "Caramelo Plus", "Mulher", "R$ 24,90"),
-            TripHistoryItem("05 de Março, 20:00", "Parque Ibirapuera", "Rua Augusta, 500", "Lucas Almeida", "4.8 ★", "Caramelo Grupo", "Geral", "R$ 32,60"),
-            TripHistoryItem("28 de Fevereiro, 11:45", "Aeroporto de Congonhas", "Alameda Santos, 1420", "Rafael Costa", "4.9 ★", "Caramelo Leve", "Homem", "R$ 38,00")
-        )
+        val jsonStr = getPrefs(context).getString("trip_history_json", null) ?: return emptyList()
         return try {
             val list = mutableListOf<TripHistoryItem>()
             val jsonArray = JSONArray(jsonStr)
@@ -174,7 +277,12 @@ object CarameloRepository {
                         driverRating = obj.optString("driverRating", ""),
                         category = obj.optString("category", ""),
                         driverType = obj.optString("driverType", ""),
-                        price = obj.optString("price", "")
+                        price = obj.optString("price", ""),
+                        // Campos novos: históricos antigos sem eles continuam lendo
+                        rating = obj.optInt("rating", 0),
+                        tip = obj.optString("tip", ""),
+                        payment = obj.optString("payment", ""),
+                        status = obj.optString("status", TRIP_DONE)
                     )
                 )
             }
@@ -183,4 +291,74 @@ object CarameloRepository {
             listOf()
         }
     }
+
+    // Acrescenta uma viagem no topo do histórico
+    fun addTrip(context: Context, trip: TripHistoryItem) {
+        val list = getTripHistory(context).toMutableList()
+        list.add(0, trip)
+        saveTripHistory(context, list)
+    }
+
+    const val TRIP_DONE = "Concluída"
+    const val TRIP_CANCELED = "Cancelada"
+
+    // Destinos recentes, sem repetição, a partir do histórico
+    fun getRecentDestinations(context: Context, max: Int = 5): List<String> =
+        getTripHistory(context).map { it.destination }.filter { it.isNotBlank() }.distinct().take(max)
+
+    // -------------------------------------------------------------
+    // 6. LUGARES SALVOS (Casa e Trabalho)
+    // -------------------------------------------------------------
+    fun saveHomeAddress(context: Context, address: String) {
+        getPrefs(context).edit { putString("place_home", address) }
+    }
+
+    // Sem casa salva, usa o endereço do cadastro
+    fun getHomeAddress(context: Context): String {
+        val saved = getPrefs(context).getString("place_home", null)
+        if (!saved.isNullOrBlank()) return saved
+        val rua = getUserLogradouro(context).trim()
+        val numero = getUserNumber(context).trim()
+        if (rua.isEmpty() && numero.isEmpty()) return ""
+        return if (numero.isEmpty()) rua else if (rua.isEmpty()) numero else "$rua, $numero"
+    }
+
+    fun saveWorkAddress(context: Context, address: String) {
+        getPrefs(context).edit { putString("place_work", address) }
+    }
+
+    fun getWorkAddress(context: Context): String = getPrefs(context).getString("place_work", "") ?: ""
+
+    // -------------------------------------------------------------
+    // 7. CARTEIRA (simulada: nenhum dado de cartão é coletado)
+    // -------------------------------------------------------------
+    const val PAY_PIX = "Pix"
+    const val PAY_CASH = "Dinheiro"
+    const val PAY_CARD = "Cartão"
+
+    fun setPaymentMethod(context: Context, method: String) {
+        getPrefs(context).edit { putString("payment_method", method) }
+    }
+
+    fun getPaymentMethod(context: Context): String =
+        getPrefs(context).getString("payment_method", PAY_PIX) ?: PAY_PIX
+
+    // Cupom de demonstração: CARAMELO10 = 10% de desconto, até R$ 10
+    const val DEMO_COUPON = "CARAMELO10"
+
+    fun applyCoupon(context: Context, code: String): Boolean {
+        val ok = code.trim().equals(DEMO_COUPON, ignoreCase = true)
+        if (ok) getPrefs(context).edit { putString("active_coupon", DEMO_COUPON) }
+        return ok
+    }
+
+    fun getActiveCoupon(context: Context): String? = getPrefs(context).getString("active_coupon", null)
+
+    fun clearCoupon(context: Context) {
+        getPrefs(context).edit { remove("active_coupon") }
+    }
+
+    // Desconto do cupom ativo sobre um valor (0 se não houver cupom)
+    fun couponDiscount(context: Context, value: Float): Float =
+        if (getActiveCoupon(context) == null) 0f else (value * 0.10f).coerceAtMost(10f)
 }

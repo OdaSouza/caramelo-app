@@ -1,6 +1,8 @@
 package com.draxio.mapa_teste
 
+import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
@@ -9,19 +11,28 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.DirectionsCar
+import androidx.compose.material.icons.rounded.PhotoCamera
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKey
+import com.draxio.mapa_teste.ui.components.CarameloCard
+import com.draxio.mapa_teste.ui.components.CarameloPillButton
+import com.draxio.mapa_teste.ui.components.CarameloScreenTitle
+import com.draxio.mapa_teste.ui.components.CarameloSectionLabel
+import com.draxio.mapa_teste.ui.components.CarameloSegmentedProgress
+import com.draxio.mapa_teste.ui.components.CarameloTextField
+import com.draxio.mapa_teste.ui.components.CarameloTopBar
+import com.draxio.mapa_teste.ui.components.PillStyle
 import com.draxio.mapa_teste.ui.theme.*
 
 class VehicleRegisterActivity : ComponentActivity() {
@@ -37,17 +48,7 @@ class VehicleRegisterActivity : ComponentActivity() {
                     VehicleRegisterScreen(
                         onVehicleSaved = { brand, model, plate, year ->
                             try {
-                                val masterKey = MasterKey.Builder(this)
-                                    .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-                                    .build()
-
-                                val sharedPreferences = EncryptedSharedPreferences.create(
-                                    this,
-                                    "secure_vehicle_prefs",
-                                    masterKey,
-                                    EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-                                    EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-                                )
+                                val sharedPreferences = securePrefs(this, "secure_vehicle_prefs")
 
                                 sharedPreferences.edit().apply {
                                     putString("vehicle_brand", brand)
@@ -60,11 +61,11 @@ class VehicleRegisterActivity : ComponentActivity() {
                                 Toast.makeText(this, "Veículo cadastrado com segurança!", Toast.LENGTH_SHORT).show()
                                 val intent = Intent(this, VehiclePhotoActivity::class.java)
                                 startActivity(intent)
-                                finish()
                             } catch (e: Exception) {
                                 Toast.makeText(this, "Erro ao criptografar dados do veículo: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
                             }
                         },
+                        onBack = { finish() },
                         onShowError = { message ->
                             Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
                         }
@@ -75,147 +76,119 @@ class VehicleRegisterActivity : ComponentActivity() {
     }
 }
 
+// security-crypto foi descontinuado pelo AndroidX; migrar para DataStore + Tink quando houver backend
+@Suppress("DEPRECATION")
+private fun securePrefs(context: Context, name: String): SharedPreferences {
+    val masterKey = androidx.security.crypto.MasterKey.Builder(context)
+        .setKeyScheme(androidx.security.crypto.MasterKey.KeyScheme.AES256_GCM)
+        .build()
+    return androidx.security.crypto.EncryptedSharedPreferences.create(
+        context,
+        name,
+        masterKey,
+        androidx.security.crypto.EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+        androidx.security.crypto.EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+    )
+}
+
 @Composable
 fun VehicleRegisterScreen(
     onVehicleSaved: (String, String, String, String) -> Unit,
+    onBack: () -> Unit,
     onShowError: (String) -> Unit
 ) {
-    var brand by remember { mutableStateOf("") }
-    var model by remember { mutableStateOf("") }
-    var plate by remember { mutableStateOf("") }
-    var year by remember { mutableStateOf("") }
+    var brand by rememberSaveable { mutableStateOf("") }
+    var model by rememberSaveable { mutableStateOf("") }
+    var plate by rememberSaveable { mutableStateOf("") }
+    var year by rememberSaveable { mutableStateOf("") }
 
-    Box(
+    Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(24.dp),
-        contentAlignment = Alignment.Center
+            .statusBarsPadding()
+            .navigationBarsPadding()
+            .padding(horizontal = 20.dp, vertical = 12.dp)
     ) {
         Column(
             modifier = Modifier
+                .weight(1f)
                 .fillMaxWidth()
                 .verticalScroll(rememberScrollState()),
-            horizontalAlignment = Alignment.CenterHorizontally
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            CarameloLogo()
+            CarameloTopBar(title = "Dados do veículo", onBack = onBack)
 
-            Spacer(modifier = Modifier.height(28.dp))
-
-            Text(
-                text = "Cadastrar Automóvel",
-                fontSize = 30.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(bottom = 24.dp)
-            )
-
-            OutlinedTextField(
-                value = brand,
-                onValueChange = { brand = it },
-                label = { Text("Marca (ex: Toyota, Ford)") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    focusedLabelColor = MaterialTheme.colorScheme.primary,
-                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                )
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            OutlinedTextField(
-                value = model,
-                onValueChange = { model = it },
-                label = { Text("Modelo (ex: Corolla, Ka)") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    focusedLabelColor = MaterialTheme.colorScheme.primary,
-                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                )
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            OutlinedTextField(
-                value = plate,
-                onValueChange = { plate = it },
-                label = { Text("Placa do Veículo") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    focusedLabelColor = MaterialTheme.colorScheme.primary,
-                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                )
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            OutlinedTextField(
-                value = year,
-                onValueChange = { year = it },
-                label = { Text("Ano de Fabricação") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    focusedBorderColor = MaterialTheme.colorScheme.primary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
-                    focusedLabelColor = MaterialTheme.colorScheme.primary,
-                    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground
-                )
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Button(
-                onClick = {
-                    if (brand.isNotBlank() && model.isNotBlank() && plate.isNotBlank() && year.isNotBlank()) {
-                        onVehicleSaved(brand, model, plate, year)
-                    } else {
-                        onShowError("Por favor, preencha todos os dados do veículo.")
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
-                shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-            ) {
+            // Indicador de etapa
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                CarameloSegmentedProgress(progress = 3f / 5f, segments = 5, height = 8.dp)
                 Text(
-                    text = "Avançar para Foto",
-                    color = Color.White,
-                    fontSize = 16.sp,
-                    fontWeight = FontWeight.Bold
+                    text = "Passo 3 de 5",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
+
+            CarameloScreenTitle(title = "Seu automóvel")
+
+            CarameloSectionLabel(text = "Dados do veículo")
+            CarameloCard {
+                CarameloTextField(
+                    value = brand,
+                    onValueChange = { brand = it },
+                    label = "Marca",
+                    placeholder = "ex: Toyota, Ford",
+                    leadingIcon = Icons.Rounded.DirectionsCar,
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words)
+                )
+                CarameloTextField(
+                    value = model,
+                    onValueChange = { model = it },
+                    label = "Modelo",
+                    placeholder = "ex: Corolla, Ka",
+                    keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Words)
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    CarameloTextField(
+                        value = plate,
+                        onValueChange = { plate = it },
+                        label = "Placa do veículo",
+                        placeholder = "ABC1D23",
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Characters)
+                    )
+                    CarameloTextField(
+                        value = year,
+                        onValueChange = { year = it },
+                        label = "Ano de fabricação",
+                        placeholder = "AAAA",
+                        modifier = Modifier.weight(1f),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
         }
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        CarameloPillButton(
+            text = "Avançar para foto",
+            icon = Icons.Rounded.PhotoCamera,
+            onClick = {
+                if (brand.isNotBlank() && model.isNotBlank() && plate.isNotBlank() && year.isNotBlank()) {
+                    onVehicleSaved(brand, model, plate, year)
+                } else {
+                    onShowError("Por favor, preencha todos os dados do veículo.")
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            style = PillStyle.Primary
+        )
     }
 }
 
@@ -226,6 +199,7 @@ fun VehicleRegisterScreenPreview() {
         Surface(modifier = Modifier.fillMaxSize()) {
             VehicleRegisterScreen(
                 onVehicleSaved = { _, _, _, _ -> },
+                onBack = {},
                 onShowError = {}
             )
         }
@@ -239,6 +213,7 @@ fun VehicleRegisterScreenDarkPreview() {
         Surface(modifier = Modifier.fillMaxSize()) {
             VehicleRegisterScreen(
                 onVehicleSaved = { _, _, _, _ -> },
+                onBack = {},
                 onShowError = {}
             )
         }

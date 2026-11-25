@@ -1,3 +1,17 @@
 # Project exclude paths
 /.gradle/
 /build/
+/.kotlin/
+/.idea/
+*.iml
+
+# Chaves e segredos: nunca versionar
+local.properties
+keystore.properties
+*.jks
+*.keystore
+
+# Arquivos gerados
+/captures/
+*.apk
+*.aab
